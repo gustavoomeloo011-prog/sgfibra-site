@@ -2,6 +2,12 @@ const menuToggle = document.querySelector(".menu-toggle");
 const mainNav = document.querySelector(".main-nav");
 
 if (menuToggle && mainNav) {
+  const closeMenu = () => {
+    mainNav.classList.remove("is-open");
+    menuToggle.setAttribute("aria-expanded", "false");
+    menuToggle.setAttribute("aria-label", "Abrir menu");
+  };
+
   menuToggle.addEventListener("click", () => {
     const isOpen = mainNav.classList.toggle("is-open");
     menuToggle.setAttribute("aria-expanded", String(isOpen));
@@ -10,9 +16,19 @@ if (menuToggle && mainNav) {
 
   mainNav.addEventListener("click", (event) => {
     if (event.target instanceof HTMLAnchorElement) {
-      mainNav.classList.remove("is-open");
-      menuToggle.setAttribute("aria-expanded", "false");
-      menuToggle.setAttribute("aria-label", "Abrir menu");
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!mainNav.contains(event.target) && !menuToggle.contains(event.target)) {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
     }
   });
 }
