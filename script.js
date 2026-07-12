@@ -1,11 +1,15 @@
 const menuToggle = document.querySelector(".menu-toggle");
 const mainNav = document.querySelector(".main-nav");
+const navFolders = document.querySelectorAll(".nav-folder");
 
 if (menuToggle && mainNav) {
   const closeMenu = () => {
     mainNav.classList.remove("is-open");
     menuToggle.setAttribute("aria-expanded", "false");
     menuToggle.setAttribute("aria-label", "Abrir menu");
+    navFolders.forEach((folder) => {
+      folder.removeAttribute("open");
+    });
   };
 
   menuToggle.addEventListener("click", () => {

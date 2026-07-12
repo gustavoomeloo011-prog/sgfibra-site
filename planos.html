@@ -28,8 +28,13 @@
     </button>
 
     <nav class="main-nav app-page-nav" aria-label="Navegação principal">
-      <a href="index.html#planos">Planos</a>
-      <a href="index.html#cobertura">Cobertura</a>
+      <details class="nav-folder">
+        <summary>FAQ</summary>
+        <a href="privacidade.html">Política de Privacidade</a>
+        <a href="exclusao-conta.html">Exclusão da Conta</a>
+        <a href="index.html#cobertura">Cobertura</a>
+        <a href="planos.html">Planos</a>
+      </details>
       <a href="app.html">App</a>
       <a href="https://sgfibra.sgp.tsmx.app/accounts/central/login" target="_blank" rel="noopener">Portal</a>
     </nav>
@@ -52,67 +57,64 @@
     <section class="plans-section all-plans-section">
       <div class="section-heading">
         <span class="eyebrow">Internet + TV</span>
-        <h2>Planos com Globoplay com anúncios.</h2>
-        <p>Escolha a velocidade ideal e consulte disponibilidade para seu endereço pelo WhatsApp.</p>
+        <h2>Planos com internet + TV.</h2>
+        <p>Escolha entre Globoplay com anúncios ou pacote completo com Telecine e Premiere.</p>
       </div>
 
       <div class="plans-grid combo-grid">
         <article class="plan-card">
           <div class="plan-speed">
-            <strong>400</strong>
-            <span>mega</span>
-          </div>
-          <p class="plan-fit">Internet fibra óptica com Globoplay com anúncios incluso.</p>
-          <ul>
-            <li>Globoplay com anúncios</li>
-            <li>Streaming, redes sociais e home office</li>
-            <li>Suporte via WhatsApp</li>
-          </ul>
-          <div class="plan-price">
-            <span>Por apenas</span>
-            <strong>R$ 99,99</strong>
-            <small>/mês</small>
-          </div>
-          <a class="btn btn-plan" href="https://wa.me/5511914973216?text=Olá,%20quero%20contratar%20o%20plano%20400%20mega%20com%20Globoplay%20da%20SG%20Fibra" target="_blank" rel="noopener">Contratar 400 mega + TV</a>
-        </article>
-
-        <article class="plan-card">
-          <div class="plan-speed">
-            <strong>500</strong>
-            <span>mega</span>
-          </div>
-          <p class="plan-fit">Mais velocidade com Globoplay com anúncios para sua rotina.</p>
-          <ul>
-            <li>Globoplay com anúncios</li>
-            <li>Ótimo para vários dispositivos</li>
-            <li>Atendimento local</li>
-          </ul>
-          <div class="plan-price">
-            <span>Por apenas</span>
-            <strong>R$ 119,99</strong>
-            <small>/mês</small>
-          </div>
-          <a class="btn btn-plan" href="https://wa.me/5511914973216?text=Olá,%20quero%20contratar%20o%20plano%20500%20mega%20com%20Globoplay%20da%20SG%20Fibra" target="_blank" rel="noopener">Contratar 500 mega + TV</a>
-        </article>
-
-        <article class="plan-card featured">
-          <span class="featured-label">Melhor oferta</span>
-          <div class="plan-speed">
             <strong>700</strong>
             <span>mega</span>
           </div>
-          <p class="plan-fit">Alta performance com Globoplay com anúncios pelo mesmo valor do 500 mega.</p>
+          <p class="plan-fit">Alta performance com Globoplay, Telecine e Premiere.</p>
+
+          <div class="tv-logo-row" aria-label="Serviços inclusos">
+            <span class="tv-logo globoplay">Globoplay</span>
+            <span class="tv-logo telecine">Telecine</span>
+            <span class="tv-logo premiere">Premiere</span>
+          </div>
+
           <ul>
-            <li>Globoplay com anúncios</li>
+            <li>Globoplay</li>
+            <li>Telecine para filmes e estreias</li>
+            <li>Premiere para acompanhar futebol</li>
             <li>Mais velocidade para casa conectada</li>
-            <li>Ideal para streaming e downloads</li>
           </ul>
           <div class="plan-price">
             <span>Por apenas</span>
-            <strong>R$ 119,99</strong>
+            <strong>R$ 139,99</strong>
             <small>/mês</small>
           </div>
-          <a class="btn btn-plan" href="https://wa.me/5511914973216?text=Olá,%20quero%20contratar%20o%20plano%20700%20mega%20com%20Globoplay%20da%20SG%20Fibra" target="_blank" rel="noopener">Contratar 700 mega + TV</a>
+          <a class="btn btn-plan" href="https://wa.me/5511914973216?text=Olá,%20quero%20contratar%20o%20plano%20700%20mega%20com%20Globoplay%20sem%20anúncios,%20Telecine%20e%20Premiere%20da%20SG%20Fibra" target="_blank" rel="noopener">Contratar 700 mega + TV</a>
+        </article>
+
+        <article class="plan-card featured premium-tv-card">
+          <span class="featured-label">Mais completo</span>
+          <div class="plan-speed">
+            <strong>800</strong>
+            <span>mega</span>
+          </div>
+          <p class="plan-fit">Internet fibra óptica com Globoplay, Telecine e Premiere para sua casa.</p>
+
+          <div class="tv-logo-row" aria-label="Serviços inclusos">
+            <span class="tv-logo globoplay">Globoplay</span>
+            <span class="tv-logo telecine">Telecine</span>
+            <span class="tv-logo premiere">Premiere</span>
+          </div>
+
+          <ul>
+            <li>Globoplay incluso</li>
+            <li>Telecine para filmes e estreias</li>
+            <li>Premiere para acompanhar futebol</li>
+            <li>Mais velocidade para casa conectada</li>
+          </ul>
+          <div class="plan-price">
+            <span>Por apenas</span>
+            <strong>R$ 149,99</strong>
+            <small>/mês</small>
+          </div>
+          <a class="btn btn-plan" href="https://wa.me/5511914973216?text=Olá,%20quero%20contratar%20o%20plano%20800%20mega%20com%20Globoplay,%20Telecine%20e%20Premiere%20da%20SG%20Fibra" target="_blank" rel="noopener">Contratar 800 mega + TV</a>
         </article>
       </div>
 
@@ -179,6 +181,8 @@
       <a href="index.html">Início</a>
       <a href="index.html#planos">Planos principais</a>
       <a href="app.html">App Android</a>
+      <a href="privacidade.html">Privacidade</a>
+      <a href="exclusao-conta.html">Exclusão de Conta</a>
       <a href="https://wa.me/5511914973216" target="_blank" rel="noopener">WhatsApp</a>
     </nav>
 

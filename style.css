@@ -121,6 +121,67 @@ a{
   color:var(--blue);
 }
 
+.nav-folder{
+  position:relative;
+}
+
+.nav-folder summary{
+  border-radius:8px;
+  color:#263f5c;
+  cursor:pointer;
+  font-size:14px;
+  font-weight:700;
+  list-style:none;
+  padding:10px 12px;
+  transition:background 0.2s ease,color 0.2s ease;
+}
+
+.nav-folder summary::-webkit-details-marker{
+  display:none;
+}
+
+.nav-folder summary::after{
+  content:"▾";
+  font-size:11px;
+  margin-left:6px;
+}
+
+.nav-folder summary:hover,
+.nav-folder[open] summary{
+  background:#eaf2ff;
+  color:var(--blue);
+}
+
+.nav-folder a{
+  display:block;
+  white-space:nowrap;
+}
+
+@media(min-width:861px){
+  .nav-folder[open]{
+    z-index:1300;
+  }
+
+  .nav-folder[open]::after{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 18px 42px rgba(7,27,54,0.16);
+    content:"";
+    height:calc(100% + 170px);
+    left:0;
+    min-width:230px;
+    position:absolute;
+    top:0;
+    z-index:-1;
+  }
+
+  .nav-folder[open] a{
+    margin:2px 8px;
+    padding:10px 12px;
+  }
+}
+
 .header-cta{
   background:var(--navy);
   border-radius:8px;
@@ -346,7 +407,6 @@ a{
   font-size:14px;
 }
 
-.benefits-section,
 .plans-section,
 .location-section{
   padding:82px 6%;
@@ -370,39 +430,6 @@ a{
 .coverage-content p{
   color:var(--muted);
   font-size:17px;
-}
-
-.benefit-grid{
-  display:grid;
-  gap:22px;
-  grid-template-columns:repeat(3,1fr);
-}
-
-.benefit-card{
-  background:var(--white);
-  border:1px solid var(--line);
-  border-radius:8px;
-  box-shadow:0 12px 28px rgba(7,27,54,0.06);
-  overflow:hidden;
-}
-
-.benefit-card img{
-  background:#eaf4ff;
-  height:220px;
-  object-fit:contain;
-  padding:20px;
-  width:100%;
-}
-
-.benefit-card h3{
-  color:var(--navy);
-  font-size:22px;
-  padding:24px 24px 8px;
-}
-
-.benefit-card p{
-  color:var(--muted);
-  padding:0 24px 26px;
 }
 
 .plans-section{
@@ -594,6 +621,46 @@ a{
 
 .combo-grid{
   margin-bottom:28px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  margin-left:auto;
+  margin-right:auto;
+  max-width:940px;
+}
+
+.premium-tv-card{
+  background:linear-gradient(180deg,#ffffff,#f7fbff);
+}
+
+.tv-logo-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:18px 0 2px;
+}
+
+.tv-logo{
+  align-items:center;
+  border-radius:8px;
+  color:var(--white);
+  display:inline-flex;
+  font-size:13px;
+  font-weight:900;
+  justify-content:center;
+  min-height:38px;
+  padding:9px 12px;
+  text-align:center;
+}
+
+.tv-logo.globoplay{
+  background:linear-gradient(135deg,#ff6b00,#e0008a,#0057ff);
+}
+
+.tv-logo.telecine{
+  background:linear-gradient(135deg,#101828,#3b4b66);
+}
+
+.tv-logo.premiere{
+  background:linear-gradient(135deg,#00a859,#006b3f);
 }
 
 .addons-grid{
@@ -910,6 +977,48 @@ a{
   font-size:15px;
 }
 
+.app-faq-section{
+  background:var(--soft);
+  padding:82px 6%;
+}
+
+.faq-link-grid{
+  display:grid;
+  gap:18px;
+  grid-template-columns:repeat(2,1fr);
+  margin:0 auto;
+  max-width:980px;
+}
+
+.faq-link-grid a{
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 12px 28px rgba(7,27,54,0.06);
+  display:block;
+  padding:26px;
+  text-decoration:none;
+  transition:transform 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease;
+}
+
+.faq-link-grid a:hover{
+  border-color:var(--blue);
+  box-shadow:0 18px 36px rgba(0,108,255,0.12);
+  transform:translateY(-2px);
+}
+
+.faq-link-grid strong{
+  color:var(--navy);
+  display:block;
+  font-size:22px;
+  margin-bottom:8px;
+}
+
+.faq-link-grid span{
+  color:var(--muted);
+  display:block;
+}
+
 .install-guide{
   background:var(--soft);
   display:grid;
@@ -1006,6 +1115,85 @@ a{
   margin-top:14px;
 }
 
+.legal-hero{
+  background:
+    linear-gradient(110deg,rgba(6,23,47,0.97),rgba(6,23,47,0.8)),
+    url("imagens/bg.jpg");
+  background-position:center;
+  background-size:cover;
+  color:var(--white);
+  padding:72px 6%;
+  text-align:center;
+}
+
+.legal-hero h1{
+  font-size:clamp(38px,5vw,62px);
+  line-height:1.05;
+  margin-bottom:16px;
+}
+
+.legal-hero p{
+  color:#d7e6f8;
+  font-size:18px;
+}
+
+.legal-section{
+  background:var(--soft);
+  padding:72px 6%;
+}
+
+.legal-card{
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  margin:0 auto;
+  max-width:920px;
+  padding:42px;
+}
+
+.legal-card h2{
+  color:var(--navy);
+  font-size:24px;
+  margin:30px 0 10px;
+}
+
+.legal-card p,
+.legal-card li{
+  color:#334962;
+  font-size:16px;
+}
+
+.legal-card p + p{
+  margin-top:12px;
+}
+
+.legal-card ul{
+  display:grid;
+  gap:8px;
+  margin:14px 0 0;
+  padding-left:22px;
+}
+
+.legal-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+  margin:28px 0 18px;
+}
+
+.legal-contact{
+  background:#eaf2ff;
+  border:1px solid #cfe0f6;
+  border-radius:8px;
+  color:var(--navy);
+  display:inline-flex;
+  font-weight:800;
+  margin-top:16px;
+  padding:12px 14px;
+  text-decoration:none;
+}
+
 .free-badge{
   background:var(--gold);
   border-radius:999px;
@@ -1024,6 +1212,42 @@ a{
   border-radius:8px;
   box-shadow:var(--shadow);
   overflow:hidden;
+}
+
+.location-photo-card{
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  margin:0 auto 28px;
+  max-width:980px;
+  overflow:hidden;
+}
+
+.location-photo-card img{
+  aspect-ratio:16 / 9;
+  height:auto;
+  object-fit:cover;
+  width:100%;
+}
+
+.location-photo-card div{
+  align-items:center;
+  display:flex;
+  gap:12px;
+  justify-content:space-between;
+  padding:18px 22px;
+}
+
+.location-photo-card strong{
+  color:var(--navy);
+  font-size:18px;
+}
+
+.location-photo-card span{
+  color:var(--muted);
+  font-size:14px;
+  text-align:right;
 }
 
 .site-footer{
@@ -1137,7 +1361,6 @@ a{
   }
 
   .trust-strip,
-  .benefit-grid,
   .plans-grid,
   .app-feature-grid,
   .addons-grid{
@@ -1201,6 +1424,26 @@ a{
     width:100%;
   }
 
+  .nav-folder{
+    width:100%;
+  }
+
+  .nav-folder summary{
+    padding:12px 14px;
+    text-align:center;
+    width:100%;
+  }
+
+  .nav-folder[open]{
+    background:#f4f8fc;
+    border-radius:8px;
+    padding-bottom:6px;
+  }
+
+  .nav-folder a{
+    margin:3px 8px;
+  }
+
   .header-cta{
     display:none;
   }
@@ -1233,10 +1476,14 @@ a{
   }
 
   .trust-strip,
-  .benefit-grid,
   .plans-grid,
-  .app-feature-grid{
+  .app-feature-grid,
+  .faq-link-grid{
     grid-template-columns:1fr;
+  }
+
+  .combo-grid{
+    max-width:none;
   }
 
   .addons-grid{
@@ -1311,8 +1558,8 @@ a{
   .app-hero,
   .plans-page-hero,
   .app-info-section,
+  .app-faq-section,
   .install-guide,
-  .benefits-section,
   .plans-section,
   .location-section,
   .app-section,
@@ -1326,6 +1573,10 @@ a{
   }
 
   .app-hero h1{
+    font-size:34px;
+  }
+
+  .legal-hero h1{
     font-size:34px;
   }
 
@@ -1346,6 +1597,23 @@ a{
   .app-phone-card img{
     height:120px;
     width:190px;
+  }
+
+  .legal-card{
+    padding:28px 20px;
+  }
+
+  .location-photo-card div{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .location-photo-card span{
+    text-align:left;
+  }
+
+  .legal-actions .btn{
+    width:100%;
   }
 
   .plan-card{
