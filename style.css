@@ -23,6 +23,16 @@ html{
   scroll-behavior:smooth;
 }
 
+@keyframes softFloat{
+  0%,100%{
+    transform:translateY(0);
+  }
+
+  50%{
+    transform:translateY(-8px);
+  }
+}
+
 body{
   background:var(--soft);
   color:var(--ink);
@@ -443,6 +453,24 @@ a{
   grid-template-columns:repeat(3,1fr);
 }
 
+.plans-grid.is-carousel{
+  cursor:grab;
+  display:flex;
+  overflow-x:auto;
+  padding:16px 2px 22px;
+  scroll-behavior:smooth;
+  scroll-snap-type:x mandatory;
+  scrollbar-width:none;
+}
+
+.plans-grid.is-carousel:active{
+  cursor:grabbing;
+}
+
+.plans-grid.is-carousel::-webkit-scrollbar{
+  display:none;
+}
+
 .plan-card{
   background:linear-gradient(180deg,#ffffff,#f8fbff);
   border:1px solid var(--line);
@@ -454,10 +482,33 @@ a{
   position:relative;
 }
 
+.plans-grid.is-carousel .plan-card{
+  flex:0 0 clamp(340px,42%,520px);
+  min-width:0;
+  scroll-snap-align:center;
+  transform:scale(0.96) rotateY(0deg);
+  transform-origin:center;
+  transition:border-color 0.35s ease,box-shadow 0.35s ease,transform 0.35s ease;
+}
+
 .plan-card.featured{
   border:2px solid var(--blue);
   box-shadow:0 22px 44px rgba(0,108,255,0.16);
   transform:translateY(-10px);
+}
+
+.plans-grid.is-carousel .plan-card.featured{
+  transform:scale(0.96) rotateY(0deg);
+}
+
+.plans-grid.is-carousel .plan-card.is-active{
+  border-color:var(--blue);
+  box-shadow:0 24px 50px rgba(0,108,255,0.17);
+  transform:scale(1) rotateY(-2deg);
+}
+
+.plans-grid.is-carousel .plan-card.featured.is-active{
+  transform:scale(1) rotateY(-2deg);
 }
 
 .featured-label{
@@ -625,6 +676,10 @@ a{
   margin-left:auto;
   margin-right:auto;
   max-width:940px;
+}
+
+.combo-grid.is-carousel .plan-card{
+  flex-basis:clamp(360px,68%,620px);
 }
 
 .premium-tv-card{
@@ -1339,6 +1394,27 @@ a{
   background:linear-gradient(135deg,#5b3fd6,#d62976,#ff9f1c);
 }
 
+.reveal-item{
+  opacity:0;
+  transform:translateX(-24px);
+  transition:opacity 0.45s ease,transform 0.45s cubic-bezier(0.22,1,0.36,1);
+}
+
+.reveal-item.reveal-from-right{
+  transform:translateX(24px);
+}
+
+.reveal-item.is-visible{
+  opacity:1;
+  transform:translateX(0);
+}
+
+.hero-card > img.is-visible,
+.plans-page-hero img.is-visible,
+.app-phone-card img.is-visible{
+  animation:softFloat 4.8s ease-in-out 0.5s infinite;
+}
+
 @media(max-width:1100px){
   .site-header{
     gap:14px;
@@ -1365,6 +1441,10 @@ a{
   .app-feature-grid,
   .addons-grid{
     grid-template-columns:repeat(2,1fr);
+  }
+
+  .plans-grid.is-carousel .plan-card{
+    flex-basis:62%;
   }
 
   .install-guide{
@@ -1482,8 +1562,17 @@ a{
     grid-template-columns:1fr;
   }
 
+  .plans-grid.is-carousel .plan-card,
+  .combo-grid.is-carousel .plan-card{
+    flex-basis:100%;
+  }
+
   .combo-grid{
     max-width:none;
+  }
+
+  .combo-grid.is-carousel .plan-card{
+    flex-basis:100%;
   }
 
   .addons-grid{
@@ -1636,5 +1725,26 @@ a{
   .float-link{
     height:50px;
     width:50px;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  html{
+    scroll-behavior:auto;
+  }
+
+  .btn,
+  .header-cta,
+  .float-link,
+  .faq-link-grid a,
+  .plans-grid.is-carousel .plan-card,
+  .reveal-item{
+    transition:none;
+  }
+
+  .hero-card > img.is-visible,
+  .plans-page-hero img.is-visible,
+  .app-phone-card img.is-visible{
+    animation:none;
   }
 }
