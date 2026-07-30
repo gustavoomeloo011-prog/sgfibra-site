@@ -1630,8 +1630,32 @@ a{
 
   .plans-grid.is-carousel .plan-card,
   .combo-grid.is-carousel .plan-card{
-    min-width:min(88vw,360px);
-    width:76%;
+    max-width:360px;
+    min-width:0;
+    width:72%;
+  }
+
+  .plans-grid.is-carousel{
+    min-height:var(--carousel-height,570px);
+    padding:22px 0 32px;
+    perspective:900px;
+  }
+
+  .plans-grid.is-carousel .plan-card.is-active,
+  .plans-grid.is-carousel .plan-card.featured.is-active{
+    transform:translateX(-50%) translateZ(70px) rotateY(0deg) scale(0.96);
+  }
+
+  .plans-grid.is-carousel .plan-card.is-prev{
+    filter:blur(1.8px) saturate(0.8);
+    opacity:0.56;
+    transform:translateX(-104%) translateZ(-130px) rotateY(56deg) scale(0.76);
+  }
+
+  .plans-grid.is-carousel .plan-card.is-next{
+    filter:blur(1.8px) saturate(0.8);
+    opacity:0.56;
+    transform:translateX(4%) translateZ(-130px) rotateY(-56deg) scale(0.76);
   }
 
   .combo-grid{
@@ -1639,7 +1663,7 @@ a{
   }
 
   .combo-grid.is-carousel .plan-card{
-    width:76%;
+    width:72%;
   }
 
   .addons-grid{
@@ -1774,6 +1798,20 @@ a{
 
   .plan-card{
     padding:26px 22px;
+  }
+
+  .plans-grid.is-carousel .plan-card,
+  .combo-grid.is-carousel .plan-card{
+    max-width:330px;
+    width:74%;
+  }
+
+  .plans-grid.is-carousel .plan-card.is-prev{
+    transform:translateX(-98%) translateZ(-120px) rotateY(58deg) scale(0.74);
+  }
+
+  .plans-grid.is-carousel .plan-card.is-next{
+    transform:translateX(-2%) translateZ(-120px) rotateY(-58deg) scale(0.74);
   }
 
   .plan-speed strong{
