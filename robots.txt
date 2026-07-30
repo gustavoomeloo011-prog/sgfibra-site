@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://gustavoomeloo011-prog.github.io/sgfibra-site/sitemap.xml
+Sitemap: https://sgfibra.com.br/sitemap.xml
