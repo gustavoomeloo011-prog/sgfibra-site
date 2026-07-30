@@ -1082,6 +1082,14 @@ a{
   max-width:980px;
 }
 
+.faq-question-grid{
+  display:grid;
+  gap:18px;
+  grid-template-columns:repeat(2,1fr);
+  margin:22px auto 0;
+  max-width:980px;
+}
+
 .faq-link-grid a{
   background:var(--white);
   border:1px solid var(--line);
@@ -1109,6 +1117,26 @@ a{
 .faq-link-grid span{
   color:var(--muted);
   display:block;
+}
+
+.faq-question-grid article{
+  background:var(--white);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 12px 28px rgba(7,27,54,0.06);
+  padding:26px;
+}
+
+.faq-question-grid strong{
+  color:var(--navy);
+  display:block;
+  font-size:20px;
+  margin-bottom:8px;
+}
+
+.faq-question-grid p{
+  color:var(--muted);
+  font-size:15px;
 }
 
 .install-guide{
@@ -1595,7 +1623,8 @@ a{
   .trust-strip,
   .plans-grid,
   .app-feature-grid,
-  .faq-link-grid{
+  .faq-link-grid,
+  .faq-question-grid{
     grid-template-columns:1fr;
   }
 

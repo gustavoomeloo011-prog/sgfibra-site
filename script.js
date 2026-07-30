@@ -156,7 +156,7 @@ carouselTracks.forEach((track) => {
 });
 
 const revealItems = document.querySelectorAll(
-  ".brand, .hero-content > *, .hero-card > img, .trust-strip div, .section-heading, .coverage-content > *, .app-content > *, .app-download-card, .location-photo-card, .plans-page-hero > div > *, .plans-page-hero img, .no-ads-highlight, .tv-programming, .addons-grid .addon-card, .app-hero-content > *, .app-phone-card img, .app-feature-grid article, .faq-link-grid a, .install-copy, .install-steps li, .download-panel, .legal-hero > *, .legal-card"
+  ".brand, .hero-content > *, .hero-card > img, .trust-strip div, .section-heading, .coverage-content > *, .app-content > *, .app-download-card, .location-photo-card, .plans-page-hero > div > *, .plans-page-hero img, .no-ads-highlight, .tv-programming, .addons-grid .addon-card, .app-hero-content > *, .app-phone-card img, .app-feature-grid article, .faq-link-grid a, .faq-question-grid article, .install-copy, .install-steps li, .download-panel, .legal-hero > *, .legal-card"
 );
 
 revealItems.forEach((item, index) => {
