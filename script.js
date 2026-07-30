@@ -50,23 +50,38 @@ carouselTracks.forEach((track) => {
 
   let currentIndex = 0;
   let carouselTimer = null;
+  let dragStartX = 0;
+  let dragDeltaX = 0;
+  let isDragging = false;
 
   track.classList.add("is-carousel");
 
-  const setActiveCard = (nextIndex, behavior = "smooth") => {
+  const normalizeIndex = (index) => (index + cards.length) % cards.length;
+
+  const updateCarouselHeight = () => {
+    const maxHeight = Math.max(...cards.map((card) => card.offsetHeight));
+    track.style.setProperty("--carousel-height", `${maxHeight + 72}px`);
+  };
+
+  const setActiveCard = (nextIndex) => {
     currentIndex = (nextIndex + cards.length) % cards.length;
+    const previousIndex = normalizeIndex(currentIndex - 1);
+    const nextCardIndex = normalizeIndex(currentIndex + 1);
 
     cards.forEach((card, index) => {
+      card.classList.remove("is-active", "is-prev", "is-next", "is-hidden");
       card.classList.toggle("is-active", index === currentIndex);
+
+      if (index === previousIndex) {
+        card.classList.add("is-prev");
+      } else if (index === nextCardIndex) {
+        card.classList.add("is-next");
+      } else if (index !== currentIndex) {
+        card.classList.add("is-hidden");
+      }
     });
 
-    const activeCard = cards[currentIndex];
-    const targetLeft = activeCard.offsetLeft - ((track.clientWidth - activeCard.clientWidth) / 2);
-
-    track.scrollTo({
-      left: Math.max(0, targetLeft),
-      behavior: prefersReducedMotion ? "auto" : behavior
-    });
+    updateCarouselHeight();
   };
 
   const stopCarousel = () => {
@@ -87,18 +102,56 @@ carouselTracks.forEach((track) => {
     }, 3600);
   };
 
-  setActiveCard(0, "auto");
+  const handleDragEnd = () => {
+    if (!isDragging) {
+      return;
+    }
+
+    track.classList.remove("is-dragging");
+    isDragging = false;
+
+    if (Math.abs(dragDeltaX) > 48) {
+      setActiveCard(currentIndex + (dragDeltaX < 0 ? 1 : -1));
+    }
+
+    dragDeltaX = 0;
+    startCarousel();
+  };
+
+  setActiveCard(0);
   startCarousel();
 
   track.addEventListener("mouseenter", stopCarousel);
   track.addEventListener("mouseleave", startCarousel);
   track.addEventListener("focusin", stopCarousel);
   track.addEventListener("focusout", startCarousel);
-  track.addEventListener("touchstart", stopCarousel, { passive:true });
-  track.addEventListener("touchend", startCarousel);
+
+  track.addEventListener("pointerdown", (event) => {
+    if (event.target instanceof HTMLAnchorElement) {
+      return;
+    }
+
+    stopCarousel();
+    isDragging = true;
+    dragStartX = event.clientX;
+    dragDeltaX = 0;
+    track.classList.add("is-dragging");
+    track.setPointerCapture(event.pointerId);
+  });
+
+  track.addEventListener("pointermove", (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    dragDeltaX = event.clientX - dragStartX;
+  });
+
+  track.addEventListener("pointerup", handleDragEnd);
+  track.addEventListener("pointercancel", handleDragEnd);
 
   window.addEventListener("resize", () => {
-    setActiveCard(currentIndex, "auto");
+    updateCarouselHeight();
   });
 });
 

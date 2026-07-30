@@ -455,12 +455,14 @@ a{
 
 .plans-grid.is-carousel{
   cursor:grab;
-  display:flex;
-  overflow-x:auto;
-  padding:16px 2px 22px;
-  scroll-behavior:smooth;
-  scroll-snap-type:x mandatory;
-  scrollbar-width:none;
+  display:block;
+  min-height:var(--carousel-height,620px);
+  overflow:hidden;
+  padding:26px 0 34px;
+  perspective:1200px;
+  position:relative;
+  touch-action:pan-y;
+  user-select:none;
 }
 
 .plans-grid.is-carousel:active{
@@ -483,12 +485,17 @@ a{
 }
 
 .plans-grid.is-carousel .plan-card{
-  flex:0 0 clamp(340px,42%,520px);
-  min-width:0;
-  scroll-snap-align:center;
-  transform:scale(0.96) rotateY(0deg);
+  left:50%;
+  max-width:430px;
+  min-width:min(86vw,340px);
+  position:absolute;
+  top:26px;
+  transform:translateX(-50%) translateZ(-340px) scale(0.78);
   transform-origin:center;
-  transition:border-color 0.35s ease,box-shadow 0.35s ease,transform 0.35s ease;
+  transition:border-color 0.52s ease,box-shadow 0.52s ease,filter 0.52s ease,opacity 0.52s ease,transform 0.52s cubic-bezier(0.22,1,0.36,1),z-index 0.52s ease;
+  width:32%;
+  will-change:transform,opacity,filter;
+  z-index:1;
 }
 
 .plan-card.featured{
@@ -498,17 +505,46 @@ a{
 }
 
 .plans-grid.is-carousel .plan-card.featured{
-  transform:scale(0.96) rotateY(0deg);
+  transform:translateX(-50%) translateZ(-340px) scale(0.78);
 }
 
 .plans-grid.is-carousel .plan-card.is-active{
   border-color:var(--blue);
-  box-shadow:0 24px 50px rgba(0,108,255,0.17);
-  transform:scale(1) rotateY(-2deg);
+  box-shadow:0 30px 60px rgba(0,108,255,0.2);
+  filter:none;
+  opacity:1;
+  transform:translateX(-50%) translateZ(110px) rotateY(0deg) scale(1);
+  z-index:5;
 }
 
 .plans-grid.is-carousel .plan-card.featured.is-active{
-  transform:scale(1) rotateY(-2deg);
+  transform:translateX(-50%) translateZ(110px) rotateY(0deg) scale(1);
+}
+
+.plans-grid.is-carousel .plan-card.is-prev{
+  filter:blur(1.5px) saturate(0.82);
+  opacity:0.64;
+  transform:translateX(-122%) translateZ(-170px) rotateY(52deg) scale(0.82);
+  z-index:3;
+}
+
+.plans-grid.is-carousel .plan-card.is-next{
+  filter:blur(1.5px) saturate(0.82);
+  opacity:0.64;
+  transform:translateX(22%) translateZ(-170px) rotateY(-52deg) scale(0.82);
+  z-index:3;
+}
+
+.plans-grid.is-carousel .plan-card.is-hidden{
+  filter:blur(4px) saturate(0.7);
+  opacity:0;
+  pointer-events:none;
+  transform:translateX(-50%) translateZ(-460px) rotateY(90deg) scale(0.68);
+  z-index:1;
+}
+
+.plans-grid.is-carousel.is-dragging .plan-card{
+  transition-duration:0.22s;
 }
 
 .featured-label{
@@ -679,7 +715,8 @@ a{
 }
 
 .combo-grid.is-carousel .plan-card{
-  flex-basis:clamp(360px,68%,620px);
+  max-width:520px;
+  width:48%;
 }
 
 .premium-tv-card{
@@ -1444,7 +1481,7 @@ a{
   }
 
   .plans-grid.is-carousel .plan-card{
-    flex-basis:62%;
+    width:46%;
   }
 
   .install-guide{
@@ -1564,7 +1601,8 @@ a{
 
   .plans-grid.is-carousel .plan-card,
   .combo-grid.is-carousel .plan-card{
-    flex-basis:100%;
+    min-width:min(88vw,360px);
+    width:76%;
   }
 
   .combo-grid{
@@ -1572,7 +1610,7 @@ a{
   }
 
   .combo-grid.is-carousel .plan-card{
-    flex-basis:100%;
+    width:76%;
   }
 
   .addons-grid{
