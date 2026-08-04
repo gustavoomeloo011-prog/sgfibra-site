@@ -21,3 +21,13 @@ services:
         value: false
       - key: PUBLIC_BASE_URL
         value: https://cadastro.sgfibra.com.br
+      - key: MAX_DOCUMENT_SIZE
+        value: 4194304
+      - key: ATTACH_DOCUMENTS
+        value: true
+      - key: REQUIRE_DOCUMENT_ATTACH
+        value: false
+      - key: SGP_ATTACH_PATH
+        value: /api/crm/cliente/{id}/anexos
+      - key: SGP_ATTACH_FIELD
+        value: files

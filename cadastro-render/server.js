@@ -10,6 +10,11 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 const CONTRACT_ENABLED = String(process.env.CONTRACT_ENABLED || "false") === "true";
+const MAX_DOCUMENT_SIZE = Number(process.env.MAX_DOCUMENT_SIZE || 4 * 1024 * 1024);
+const ATTACH_DOCUMENTS = String(process.env.ATTACH_DOCUMENTS || "true") === "true";
+const REQUIRE_DOCUMENT_ATTACH = String(process.env.REQUIRE_DOCUMENT_ATTACH || "false") === "true";
+const SGP_ATTACH_PATH = process.env.SGP_ATTACH_PATH || "/api/crm/cliente/{id}/anexos";
+const SGP_ATTACH_FIELD = process.env.SGP_ATTACH_FIELD || "files";
 
 const sessions = new Map();
 const rates = new Map();
@@ -51,6 +56,31 @@ function validCpf(value) {
     if (Number(cpf[t]) !== digit) return false;
   }
   return true;
+}
+
+function validDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  const age = now.getUTCFullYear() - date.getUTCFullYear();
+  return age >= 16 && age <= 120;
+}
+
+function safeFilename(value, fallback) {
+  const cleaned = String(value || "").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+  return cleaned || fallback;
+}
+
+function normalizeUpload(file, label) {
+  if (!file || typeof file !== "object") throw new Error(`Envie a foto ${label} do documento.`);
+  const filename = safeFilename(file.name, `documento-${label}.jpg`);
+  const mimetype = clean(file.type, 80);
+  const base64 = String(file.base64 || "").replace(/^data:[^;]+;base64,/, "");
+  const buffer = Buffer.from(base64, "base64");
+  const allowed = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+  if (!allowed.has(mimetype)) throw new Error("Envie documento em JPG, PNG, WEBP ou PDF.");
+  if (!buffer.length || buffer.length > MAX_DOCUMENT_SIZE) throw new Error("Cada documento deve ter ate 4 MB.");
+  return { label, filename, mimetype, buffer };
 }
 
 function parseCookies(header = "") {
@@ -118,9 +148,10 @@ function htmlPage(csrf) {
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
-    button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.ok{background:#dcfce7;color:#166534;display:block}.result.error{background:#fee2e2;color:#991b1b;display:block}
-    @media(max-width:720px){body{background:#f4f8fc}.grid{grid-template-columns:1fr}header,form{padding:24px}}
+    button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.ok{background:#dcfce7;color:#166534;display:block}.result.error{background:#fee2e2;color:#991b1b;display:block}.result-card{display:grid;gap:8px}.result-card strong{font-size:20px}.result-card span{font-size:15px}.protocol{display:inline-block;background:#fff;border:1px solid #86efac;border-radius:8px;color:#064e3b;font-size:18px;margin-top:4px;padding:8px 10px}
+    @media(max-width:720px){body{background:#f4f8fc}.grid,.documents-grid{grid-template-columns:1fr}header,form{padding:24px}}
   </style>
 </head>
 <body>
@@ -137,6 +168,7 @@ function htmlPage(csrf) {
       <div class="grid">
         <label>Nome completo<input name="nome" autocomplete="name" required></label>
         <label>CPF<input name="cpfcnpj" inputmode="numeric" autocomplete="off" required></label>
+        <label>RG<input name="rg" autocomplete="off" required></label>
         <label>Data de nascimento<input name="datanasc" type="date" required></label>
         <label>Celular/WhatsApp<input name="celular" type="tel" autocomplete="tel" required></label>
         <label class="full">E-mail<input name="email" type="email" autocomplete="email" required></label>
@@ -149,6 +181,14 @@ function htmlPage(csrf) {
         <label>Complemento<input name="complemento"></label>
         <label class="full">Ponto de referencia<textarea name="pontoreferencia"></textarea></label>
       </div>
+      <div class="documents">
+        <strong>Documento com foto</strong>
+        <p>Envie uma foto da frente e outra do verso do documento para conferência de identidade.</p>
+        <div class="documents-grid">
+          <label>Frente do documento<input name="documento_frente" type="file" accept="image/*,application/pdf" required></label>
+          <label>Verso do documento<input name="documento_verso" type="file" accept="image/*,application/pdf" required></label>
+        </div>
+      </div>
       ${planOptions ? `<div class="plans"><strong>Plano de interesse</strong><div class="plan-list">${planOptions}</div></div>` : ""}
       <label class="consent"><input type="checkbox" name="consent" value="1" required> Autorizo a SG Fibra a usar estes dados para cadastro, atendimento e consulta de disponibilidade.</label>
       <button type="submit">Enviar cadastro</button>
@@ -160,6 +200,19 @@ function htmlPage(csrf) {
   const form = document.querySelector("#cadastro-form");
   const result = document.querySelector("#result");
   const digits = (value) => value.replace(/\\D+/g, "");
+  const fileToPayload = (file) => new Promise((resolve, reject) => {
+    if (!file) return reject(new Error("Envie as fotos do documento."));
+    if (file.size > ${MAX_DOCUMENT_SIZE}) return reject(new Error("Cada documento deve ter ate 4 MB."));
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      base64: String(reader.result).split(",")[1] || ""
+    });
+    reader.onerror = () => reject(new Error("Nao foi possivel ler o documento."));
+    reader.readAsDataURL(file);
+  });
   form.cep.addEventListener("blur", async () => {
     const cep = digits(form.cep.value);
     if (cep.length !== 8) return;
@@ -180,15 +233,29 @@ function htmlPage(csrf) {
     button.disabled = true;
     button.textContent = "Enviando...";
     try {
+      const payload = Object.fromEntries(new FormData(form));
+      payload.documento_frente = await fileToPayload(form.documento_frente.files[0]);
+      payload.documento_verso = await fileToPayload(form.documento_verso.files[0]);
       const response = await fetch("/api/cadastro", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(Object.fromEntries(new FormData(form)))
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Nao foi possivel enviar.");
       result.className = "result ok";
-      result.textContent = data.message || "Cadastro enviado com sucesso.";
+      result.innerHTML = "";
+      const card = document.createElement("div");
+      card.className = "result-card";
+      const title = document.createElement("strong");
+      title.textContent = data.message || "Cadastro feito com sucesso.";
+      const protocol = document.createElement("span");
+      protocol.className = "protocol";
+      protocol.textContent = data.protocol ? "ID do cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
+      const note = document.createElement("span");
+      note.textContent = "Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.";
+      card.append(title, protocol, note);
+      result.appendChild(card);
       form.reset();
     } catch (error) {
       result.className = "result error";
@@ -215,7 +282,10 @@ function escapeHtml(value) {
 
 async function readBody(req) {
   let raw = "";
-  for await (const chunk of req) raw += chunk;
+  for await (const chunk of req) {
+    raw += chunk;
+    if (raw.length > 12 * 1024 * 1024) throw new Error("Arquivo muito grande.");
+  }
   return raw.length ? JSON.parse(raw) : {};
 }
 
@@ -248,6 +318,31 @@ async function sgpPost(path, payload) {
   return data;
 }
 
+async function sgpMultipartPost(path, fields, files) {
+  const form = new FormData();
+  Object.entries(fields).forEach(([key, value]) => form.append(key, String(value)));
+  files.forEach((file) => {
+    form.append(SGP_ATTACH_FIELD, new Blob([file.buffer], { type: file.mimetype }), file.filename);
+  });
+  const response = await fetch(`${SGP_URL.replace(/\/$/, "")}${path}`, {
+    method: "POST",
+    headers: { "Accept": "application/json" },
+    body: form,
+    signal: AbortSignal.timeout(30000)
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!response.ok) throw new Error(`SGP recusou o anexo (${response.status}).`);
+  return data;
+}
+
+async function attachDocuments(clientId, documents) {
+  if (!ATTACH_DOCUMENTS || !clientId) return false;
+  const path = SGP_ATTACH_PATH.replace("{id}", encodeURIComponent(String(clientId)));
+  await sgpMultipartPost(path, { app: SGP_APP, token: SGP_TOKEN }, documents);
+  return true;
+}
+
 function ensureOrigin(req) {
   if (!PUBLIC_BASE_URL || !req.headers.origin) return true;
   try {
@@ -267,12 +362,17 @@ async function handleCadastro(req, res) {
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
-  const required = ["nome", "cpfcnpj", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "consent"];
+  const required = ["nome", "cpfcnpj", "rg", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   if (!validCpf(cpf)) return json(res, 422, { error: "Informe um CPF valido." });
+  if (!validDate(data.datanasc)) return json(res, 422, { error: "Informe uma data de nascimento valida." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
   if (onlyDigits(data.celular).length < 10) return json(res, 422, { error: "Informe um celular valido." });
+  const documents = [
+    normalizeUpload(data.documento_frente, "frente"),
+    normalizeUpload(data.documento_verso, "verso")
+  ];
   if (!rateAllowed(req)) return json(res, 429, { error: "Este dispositivo ja atingiu o limite de cadastros de hoje." });
 
   const address = {
@@ -292,16 +392,27 @@ async function handleCadastro(req, res) {
     token: SGP_TOKEN,
     nome: clean(data.nome, 120),
     cpfcnpj: cpf,
+    rg: clean(data.rg, 30),
+    identidade: clean(data.rg, 30),
     email: clean(data.email, 150),
     celular: onlyDigits(data.celular),
     datanasc: new Date(data.datanasc).toLocaleDateString("pt-BR", { timeZone: "UTC" }),
     endereco: address,
-    observacao: "Cadastro realizado pelo formulario publico da SG Fibra."
+    observacao: `Cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos enviados: frente e verso.`
   };
 
   try {
     const client = await sgpPost("/api/crm/cliente/F", clientPayload);
     const clientId = Number(client.id || client.cliente_id || client?.cliente?.id || 0);
+    let documentsAttached = false;
+    if (clientId > 0) {
+      try {
+        documentsAttached = await attachDocuments(clientId, documents);
+      } catch (attachError) {
+        console.error("[SG cadastro anexo]", attachError.message);
+        if (REQUIRE_DOCUMENT_ATTACH) throw attachError;
+      }
+    }
     let contract = null;
     if (CONTRACT_ENABLED && clientId > 0) {
       const planKey = clean(data.plan, 60);
@@ -326,7 +437,11 @@ async function handleCadastro(req, res) {
     }
     json(res, 200, {
       ok: true,
-      message: contract ? "Cadastro, contrato e solicitacao enviados com sucesso." : "Cadastro enviado com sucesso. A equipe SG Fibra vai continuar o atendimento.",
+      message: contract
+        ? "Cadastro, contrato e documentos enviados com sucesso."
+        : documentsAttached
+          ? "Cadastro e documentos enviados com sucesso."
+          : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocol: String(contract?.id || contract?.contrato_id || clientId || "")
     });
   } catch (error) {
