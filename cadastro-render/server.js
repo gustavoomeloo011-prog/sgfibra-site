@@ -694,7 +694,14 @@ async function handleCadastro(req, res) {
     email: clean(data.email, 150),
     celular: phone,
     datanasc: formatBirthDate(data.datanasc),
-    endereco: address,
+    endereco: address.logradouro,
+    numero: address.numero,
+    complemento: address.complemento,
+    bairro: address.bairro,
+    cidade: address.cidade,
+    uf: address.uf,
+    cep: address.cep,
+    pontoreferencia: address.pontoreferencia,
     observacao: `Cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos enviados: frente e verso.`
   };
 
