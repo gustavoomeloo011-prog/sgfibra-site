@@ -541,7 +541,7 @@ function incrementLimit(key) {
   rates.set(key, item);
 }
 
-function rateAllowed(req, data) {
+function rateLimitKeys(req, data) {
   const deviceId = readSignedCookie(req, "sg_device") || "sem-device";
   const userAgent = clean(req.headers["user-agent"] || "sem-navegador", 220);
   const identifiers = [
@@ -551,10 +551,16 @@ function rateAllowed(req, data) {
     ["cpf", onlyDigits(data.cpfcnpj)],
     ["telefone", onlyDigits(data.celular)]
   ].filter(([, value]) => value);
-  const keys = identifiers.map(([scope, value]) => rateKey(scope, value));
+  return identifiers.map(([scope, value]) => rateKey(scope, value));
+}
+
+function rateAllowed(keys) {
   if (keys.some(overLimit)) return false;
-  keys.forEach(incrementLimit);
   return true;
+}
+
+function registerSuccessfulCadastro(keys) {
+  keys.forEach(incrementLimit);
 }
 
 async function sgpPost(path, payload) {
@@ -635,7 +641,8 @@ async function handleCadastro(req, res) {
     normalizeUpload(data.documento_frente, "frente"),
     normalizeUpload(data.documento_verso, "verso")
   ];
-  if (!rateAllowed(req, data)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 envios por dia." });
+  const dailyLimitKeys = rateLimitKeys(req, data);
+  if (!rateAllowed(dailyLimitKeys)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
 
   const address = {
     logradouro: clean(data.logradouro),
@@ -666,6 +673,9 @@ async function handleCadastro(req, res) {
   try {
     const client = await sgpPost("/api/crm/cliente/F", clientPayload);
     const clientId = Number(client.id || client.cliente_id || client?.cliente?.id || 0);
+    if (clientId > 0) {
+      registerSuccessfulCadastro(dailyLimitKeys);
+    }
     let documentsAttached = false;
     if (clientId > 0) {
       try {
