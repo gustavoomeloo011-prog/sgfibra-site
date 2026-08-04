@@ -927,6 +927,29 @@ a{
   max-width:980px;
 }
 
+.plans-static-heading{
+  margin-top:46px;
+}
+
+.plans-static-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  margin:0 auto;
+  max-width:980px;
+}
+
+.plans-static-grid .plan-card{
+  min-height:100%;
+  padding:38px;
+}
+
+.plans-static-grid .plan-fit{
+  min-height:auto;
+}
+
+.internet-large-card{
+  box-shadow:0 22px 48px rgba(7,27,54,0.12);
+}
+
 .tv-programming h2{
   font-size:clamp(28px,4vw,40px);
   line-height:1.1;
@@ -1734,6 +1757,10 @@ a{
   .app-feature-grid,
   .faq-link-grid,
   .faq-question-grid{
+    grid-template-columns:1fr;
+  }
+
+  .plans-static-grid{
     grid-template-columns:1fr;
   }
 

@@ -46,7 +46,7 @@ if (menuToggle && mainNav) {
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const carouselTracks = document.querySelectorAll(".plans-grid");
+const carouselTracks = document.querySelectorAll(".plans-grid:not(.plans-static-grid)");
 
 carouselTracks.forEach((track) => {
   const cards = Array.from(track.querySelectorAll(".plan-card"));
