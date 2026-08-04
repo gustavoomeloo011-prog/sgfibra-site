@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: sg-fibra-cadastro
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: SGP_URL
+        value: https://sgfibra.sgp.tsmx.app
+      - key: SGP_APP
+        sync: false
+      - key: SGP_TOKEN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DAILY_LIMIT
+        value: 2
+      - key: CONTRACT_ENABLED
+        value: false
+      - key: PUBLIC_BASE_URL
+        value: https://cadastro.sgfibra.com.br

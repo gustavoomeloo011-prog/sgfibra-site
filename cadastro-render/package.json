@@ -1,0 +1,12 @@
+{
+  "name": "sg-fibra-cadastro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Formulario seguro de cadastro SG Fibra com integracao SGP.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

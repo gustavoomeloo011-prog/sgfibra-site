@@ -1,3 +1,10 @@
+const officialHost = "sgfibra.com.br";
+
+if (window.location.hostname === "gustavoomeloo011-prog.github.io" && window.location.pathname.startsWith("/sgfibra-site")) {
+  const cleanPath = window.location.pathname.replace(/^\/sgfibra-site\/?/, "/");
+  window.location.replace(`https://${officialHost}${cleanPath}${window.location.search}${window.location.hash}`);
+}
+
 const menuToggle = document.querySelector(".menu-toggle");
 const mainNav = document.querySelector(".main-nav");
 const navFolders = document.querySelectorAll(".nav-folder");
