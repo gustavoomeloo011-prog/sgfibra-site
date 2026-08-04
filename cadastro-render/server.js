@@ -549,7 +549,7 @@ function htmlPage(csrf) {
       title.textContent = data.message || "Cadastro feito com sucesso.";
       const protocol = document.createElement("span");
       protocol.className = "protocol";
-      protocol.textContent = data.protocol ? "ID do cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
+      protocol.textContent = data.protocol ? "ID do pre-cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
       const note = document.createElement("span");
       note.textContent = "Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.";
       card.append(title, protocol, note);
@@ -784,7 +784,7 @@ async function handleCadastro(req, res) {
         ? "Cadastro, contrato e documentos enviados com sucesso."
         : documentsAttached
           ? "Cadastro e documentos enviados com sucesso."
-          : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
+          : "Pre-cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocol: String(contract?.id || contract?.contrato_id || clientId || "")
     });
   } catch (error) {
