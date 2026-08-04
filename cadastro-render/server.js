@@ -111,7 +111,16 @@ function normalizeUpload(file, label) {
   const allowed = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
   if (!allowed.has(mimetype)) throw new Error("Envie documento em JPG, PNG, WEBP ou PDF.");
   if (!buffer.length || buffer.length > MAX_DOCUMENT_SIZE) throw new Error("Cada documento deve ter ate 4 MB.");
+  if (!validDocumentBytes(buffer, mimetype)) throw new Error("O arquivo do documento nao parece valido.");
   return { label, filename, mimetype, buffer };
+}
+
+function validDocumentBytes(buffer, mimetype) {
+  if (mimetype === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  if (mimetype === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  if (mimetype === "image/webp") return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
+  if (mimetype === "application/pdf") return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  return false;
 }
 
 function parseCookies(header = "") {
@@ -147,9 +156,14 @@ function getSession(req) {
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
     "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Cache-Control": "no-store",
+    "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), payment=(), usb=()",
     "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Cross-Origin-Opener-Policy": "same-origin",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
+    "X-Permitted-Cross-Domain-Policies": "none",
     "X-Robots-Tag": "noindex, nofollow",
     ...headers
   });
