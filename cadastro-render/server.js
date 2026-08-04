@@ -106,6 +106,12 @@ function normalizePhone(value) {
   return digits;
 }
 
+function formatPhoneBr(value) {
+  const phone = normalizePhone(value);
+  if (phone.length !== 11) return phone;
+  return `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
+}
+
 function validCpf(value) {
   const cpf = onlyDigits(value);
   if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
@@ -689,12 +695,22 @@ async function handleCadastro(req, res) {
     token: SGP_TOKEN,
     nome: clean(data.nome, 120),
     cpfcnpj: cpf,
+    tipo: "F",
+    tipopessoa: "F",
     rg: clean(data.rg, 30),
     identidade: clean(data.rg, 30),
     email: clean(data.email, 150),
     celular: phone,
+    telefone: formatPhoneBr(phone),
+    telefone1: formatPhoneBr(phone),
+    telefone2: formatPhoneBr(phone),
+    contato: formatPhoneBr(phone),
     datanasc: formatBirthDate(data.datanasc),
+    nascimento: formatBirthDate(data.datanasc),
+    data_nascimento: formatBirthDate(data.datanasc),
+    sexo: "F",
     endereco: address.logradouro,
+    logradouro: address.logradouro,
     numero: address.numero,
     complemento: address.complemento,
     bairro: address.bairro,
