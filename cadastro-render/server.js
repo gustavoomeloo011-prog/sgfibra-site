@@ -58,6 +58,22 @@ function clean(value, max = 180) {
   return String(value || "").replace(/<[^>]*>/g, "").trim().slice(0, max);
 }
 
+function supportCode() {
+  return crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+function parseJsonSafe(text) {
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {};
+  }
+}
+
+function errorSummary(error) {
+  return clean(error?.message || error, 500);
+}
+
 function onlyDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
@@ -447,7 +463,10 @@ function htmlPage(csrf) {
         body: JSON.stringify(payload)
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Nao foi possivel enviar.");
+      if (!response.ok) {
+        const suffix = data.support ? " Código: " + data.support : "";
+        throw new Error((data.error || "Nao foi possivel enviar.") + suffix);
+      }
       result.className = "result ok";
       result.innerHTML = "";
       const card = document.createElement("div");
@@ -542,8 +561,13 @@ async function sgpPost(path, payload) {
     signal: AbortSignal.timeout(25000)
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!response.ok) throw new Error(`SGP recusou o cadastro (${response.status}).`);
+  const data = parseJsonSafe(text);
+  if (!response.ok) {
+    const detail = clean(text || JSON.stringify(data), 500);
+    const error = new Error(`SGP recusou o cadastro (${response.status}). ${detail}`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -560,8 +584,13 @@ async function sgpMultipartPost(path, fields, files) {
     signal: AbortSignal.timeout(30000)
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
-  if (!response.ok) throw new Error(`SGP recusou o anexo (${response.status}).`);
+  const data = parseJsonSafe(text);
+  if (!response.ok) {
+    const detail = clean(text || JSON.stringify(data), 500);
+    const error = new Error(`SGP recusou o anexo (${response.status}). ${detail}`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 
@@ -674,8 +703,12 @@ async function handleCadastro(req, res) {
       protocol: String(contract?.id || contract?.contrato_id || clientId || "")
     });
   } catch (error) {
-    console.error("[SG cadastro]", error.message);
-    json(res, 502, { error: "Nao foi possivel concluir agora. Tente novamente ou fale com a SG Fibra." });
+    const code = supportCode();
+    console.error(`[SG cadastro ${code}]`, errorSummary(error));
+    json(res, 502, {
+      error: "Nao foi possivel concluir agora. Envie o codigo para a SG Fibra verificar.",
+      support: code
+    });
   }
 }
 
