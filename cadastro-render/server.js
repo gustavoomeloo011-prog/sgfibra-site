@@ -82,6 +82,30 @@ function onlyDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
 
+function sgpFieldError(error) {
+  const errors = error?.data?.errors;
+  if (!errors || typeof errors !== "object") return "";
+  const first = Object.entries(errors)[0];
+  if (!first) return "";
+  const [field, message] = first;
+  const label = {
+    celular: "Celular",
+    email: "E-mail",
+    cpfcnpj: "CPF",
+    datanasc: "Data de nascimento",
+    rg: "RG",
+    endereco: "Endereco"
+  }[field] || clean(field, 40);
+  return `${label}: ${clean(Array.isArray(message) ? message.join(" ") : message, 180)}`;
+}
+
+function normalizePhone(value) {
+  const digits = onlyDigits(value);
+  if (digits.length === 11) return digits;
+  if (digits.length === 10) return `${digits.slice(0, 2)}9${digits.slice(2)}`;
+  return digits;
+}
+
 function validCpf(value) {
   const cpf = onlyDigits(value);
   if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
@@ -544,12 +568,13 @@ function incrementLimit(key) {
 function rateLimitKeys(req, data) {
   const deviceId = readSignedCookie(req, "sg_device") || "sem-device";
   const userAgent = clean(req.headers["user-agent"] || "sem-navegador", 220);
+  const phone = normalizePhone(data.celular);
   const identifiers = [
     ["ip", clientIp(req)],
     ["dispositivo", deviceId],
     ["navegador", `${clientIp(req)}|${userAgent}`],
     ["cpf", onlyDigits(data.cpfcnpj)],
-    ["telefone", onlyDigits(data.celular)]
+    ["telefone", phone]
   ].filter(([, value]) => value);
   return identifiers.map(([scope, value]) => rateKey(scope, value));
 }
@@ -576,6 +601,7 @@ async function sgpPost(path, payload) {
     const detail = clean(text || JSON.stringify(data), 500);
     const error = new Error(`SGP recusou o cadastro (${response.status}). ${detail}`);
     error.status = response.status;
+    error.data = data;
     throw error;
   }
   return data;
@@ -599,6 +625,7 @@ async function sgpMultipartPost(path, fields, files) {
     const detail = clean(text || JSON.stringify(data), 500);
     const error = new Error(`SGP recusou o anexo (${response.status}). ${detail}`);
     error.status = response.status;
+    error.data = data;
     throw error;
   }
   return data;
@@ -633,10 +660,11 @@ async function handleCadastro(req, res) {
   const required = ["nome", "cpfcnpj", "rg", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
+  const phone = normalizePhone(data.celular);
   if (!validCpf(cpf)) return json(res, 422, { error: "Informe um CPF valido." });
   if (!validBirthDate(data.datanasc)) return json(res, 422, { error: "Informe a data de nascimento no formato DD/MM/AAAA." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
-  if (onlyDigits(data.celular).length < 10) return json(res, 422, { error: "Informe um celular valido." });
+  if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
   const documents = [
     normalizeUpload(data.documento_frente, "frente"),
     normalizeUpload(data.documento_verso, "verso")
@@ -664,7 +692,7 @@ async function handleCadastro(req, res) {
     rg: clean(data.rg, 30),
     identidade: clean(data.rg, 30),
     email: clean(data.email, 150),
-    celular: onlyDigits(data.celular),
+    celular: phone,
     datanasc: formatBirthDate(data.datanasc),
     endereco: address,
     observacao: `Cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos enviados: frente e verso.`
@@ -721,6 +749,10 @@ async function handleCadastro(req, res) {
       return json(res, 409, {
         error: "Este CPF ja possui cadastro na SG Fibra. Fale com um atendente para localizar ou atualizar o cadastro."
       });
+    }
+    const fieldError = sgpFieldError(error);
+    if (fieldError) {
+      return json(res, 422, { error: fieldError });
     }
     const code = supportCode();
     console.error(`[SG cadastro ${code}]`, errorSummary(error));
