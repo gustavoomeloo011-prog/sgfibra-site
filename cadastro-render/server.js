@@ -346,8 +346,8 @@ function htmlPage(csrf) {
 <div class="success-modal" id="success-modal" aria-hidden="true">
   <div class="success-card">
     <img src="/logo.png" alt="SG Fibra">
-    <strong id="success-title">Pre-cadastro concluido</strong>
-    <span class="protocol" id="success-protocol">ID do pre-cadastro: -</span>
+    <strong id="success-title">Cadastro concluido</strong>
+    <span class="protocol" id="success-protocol">ID do contrato: -</span>
     <p>Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.</p>
     <button class="success-close" type="button" id="success-close">Fechar</button>
   </div>
@@ -402,8 +402,8 @@ function htmlPage(csrf) {
       }
       result.className = "result";
       result.innerHTML = "";
-      successTitle.textContent = data.message || "Pre-cadastro concluido";
-      successProtocol.textContent = data.protocol ? "ID do pre-cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
+      successTitle.textContent = data.message || "Cadastro concluido";
+      successProtocol.textContent = data.protocol ? (data.protocolLabel || "ID do contrato") + ": " + data.protocol : "Cadastro recebido pela SG Fibra";
       successModal.classList.add("is-open");
       successModal.setAttribute("aria-hidden", "false");
       form.reset();
@@ -503,6 +503,23 @@ async function sgpPost(path, payload) {
     throw error;
   }
   return data;
+}
+
+async function latestContractIdFor(cpf) {
+  try {
+    const data = await sgpPost("/api/central/contratos", {
+      cpfcnpj: cpf,
+      senha: "sgfibra"
+    });
+    const contracts = Array.isArray(data?.contratos) ? data.contratos : [];
+    const ids = contracts
+      .map((contract) => Number(contract?.contrato || contract?.contrato_id || contract?.id || 0))
+      .filter((id) => id > 0);
+    return ids.length ? String(Math.max(...ids)) : "";
+  } catch (error) {
+    console.error("[SG contrato consulta]", errorSummary(error));
+    return "";
+  }
 }
 
 async function geocodeAddress(address) {
@@ -649,13 +666,14 @@ async function handleCadastro(req, res) {
     if (clientId > 0) {
       registerSuccessfulCadastro(dailyLimitKeys);
     }
-    let contract = null;
+    const contractId = await latestContractIdFor(cpf);
     json(res, 200, {
       ok: true,
-      message: contract
+      message: contractId
         ? "Cadastro e contrato enviados com sucesso."
-        : "Pre-cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
-      protocol: String(contract?.id || contract?.contrato_id || clientId || "")
+        : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
+      protocolLabel: contractId ? "ID do contrato" : "ID do pre-cadastro",
+      protocol: String(contractId || clientId || "")
     });
   } catch (error) {
     if (isDuplicateCpfError(error)) {
