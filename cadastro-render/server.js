@@ -20,8 +20,9 @@ const sessions = new Map();
 const rates = new Map();
 
 const internetOnlyPlans = {
-  "500-mega-internet": { id: 0, name: "500 Mega - Internet fibra" },
-  "700-mega-internet": { id: 0, name: "700 Mega - Internet fibra" }
+  "300": { id: 1, name: "300 Mega" },
+  "500": { id: 3, name: "500 Mega" },
+  "700": { id: 4, name: "700 Mega" }
 };
 
 const contractConfig = {
@@ -32,6 +33,25 @@ const contractConfig = {
   modoAquisicao: Number(process.env.CONTRACT_MODOAQUISICAO || 2),
   osInstalacao: String(process.env.CONTRACT_OS_INSTALACAO || "true") === "true",
   plans: parsePlans(process.env.PLANS_JSON || "{}")
+};
+
+const knownPlanIds = {
+  "300": 1,
+  "300-mega": 1,
+  "300-mega-internet": 1,
+  "500": 3,
+  "500-mega": 3,
+  "500-mega-internet": 3,
+  "700": 4,
+  "700-mega": 4,
+  "700-mega-internet": 4
+};
+
+const vencimentoIdByDay = {
+  5: 1,
+  10: 2,
+  20: 4,
+  30: 6
 };
 
 function parsePlans(value) {
@@ -52,6 +72,18 @@ function isInternetOnlyPlan(key, plan) {
 function publicPlanEntries() {
   const entries = Object.entries(contractConfig.plans).filter(([key, plan]) => isInternetOnlyPlan(key, plan));
   return entries.length ? entries : Object.entries(internetOnlyPlans);
+}
+
+function planIdFor(key) {
+  const planKey = clean(key, 60);
+  const plan = contractConfig.plans[planKey] || internetOnlyPlans[planKey];
+  return Number(plan?.id || knownPlanIds[planKey] || 0);
+}
+
+function vencimentoId() {
+  const explicit = Number(process.env.CONTRACT_VENCIMENTO_ID || 0);
+  if (explicit > 0) return explicit;
+  return vencimentoIdByDay[contractConfig.vencimentoDia] || contractConfig.vencimentoDia;
 }
 
 function clean(value, max = 180) {
@@ -161,6 +193,14 @@ function formatBirthDate(value) {
   const day = String(date.getUTCDate()).padStart(2, "0");
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   return `${day}/${month}/${date.getUTCFullYear()}`;
+}
+
+function formatBirthDateIso(value) {
+  const date = parseBirthDate(value);
+  if (!date) return "";
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
 function safeFilename(value, fallback) {
@@ -695,75 +735,49 @@ async function handleCadastro(req, res) {
     token: SGP_TOKEN,
     nome: clean(data.nome, 120),
     cpfcnpj: cpf,
-    cpf,
-    tipo: "F",
-    tipopessoa: "F",
     rg: clean(data.rg, 30),
+    rg_emissor: "SSP",
     identidade: clean(data.rg, 30),
     email: clean(data.email, 150),
     celular: phone,
-    telefone: formatPhoneBr(phone),
-    telefone1: formatPhoneBr(phone),
-    telefone2: formatPhoneBr(phone),
-    contato: formatPhoneBr(phone),
-    whatsapp: formatPhoneBr(phone),
-    datanasc: formatBirthDate(data.datanasc),
-    nascimento: formatBirthDate(data.datanasc),
-    data_nascimento: formatBirthDate(data.datanasc),
+    datanasc: formatBirthDateIso(data.datanasc),
     sexo: "F",
-    endereco: address.logradouro,
     logradouro: address.logradouro,
-    rua: address.logradouro,
     numero: address.numero,
     complemento: address.complemento,
     bairro: address.bairro,
     cidade: address.cidade,
     uf: address.uf,
     cep: address.cep,
-    referencia: address.pontoreferencia,
+    pais: address.pais,
     pontoreferencia: address.pontoreferencia,
-    plano: clean(data.plan, 60),
-    vencimento: contractConfig.vencimentoDia,
-    observacao: `Cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos enviados: frente e verso.`
+    vencimento_id: vencimentoId(),
+    observacao: `Pre-cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos solicitados no formulario para conferencia do atendimento.`
   };
 
+  const selectedPlanId = planIdFor(data.plan);
+  if (selectedPlanId) {
+    clientPayload.plano_id = selectedPlanId;
+    clientPayload.planointernet_id = selectedPlanId;
+  }
+  if (contractConfig.popId) clientPayload.pop_id = contractConfig.popId;
+  if (contractConfig.portadorId) clientPayload.portador_id = contractConfig.portadorId;
+  if (contractConfig.modoAquisicao || contractConfig.modoAquisicao === 0) clientPayload.modoaquisicao = contractConfig.modoAquisicao;
+  clientPayload.os_instalacao = contractConfig.osInstalacao;
+  if (CONTRACT_ENABLED) {
+    clientPayload.precadastro_ativar = 1;
+    clientPayload.login = cpf;
+    clientPayload.senha = "sgfibra";
+  }
+
   try {
-    const client = await sgpPost("/api/crm/cliente/F", clientPayload);
-    const clientId = Number(client.id || client.cliente_id || client?.cliente?.id || 0);
+    const client = await sgpPost("/api/precadastro/F", clientPayload);
+    const clientId = Number(client.id || client.precadastro_id || client.cliente_id || client?.precadastro?.id || client?.cliente?.id || 0);
     if (clientId > 0) {
       registerSuccessfulCadastro(dailyLimitKeys);
     }
     let documentsAttached = false;
-    if (clientId > 0) {
-      try {
-        documentsAttached = await attachDocuments(clientId, documents);
-      } catch (attachError) {
-        console.error("[SG cadastro anexo]", attachError.message);
-        if (REQUIRE_DOCUMENT_ATTACH) throw attachError;
-      }
-    }
     let contract = null;
-    if (CONTRACT_ENABLED && clientId > 0) {
-      const planKey = clean(data.plan, 60);
-      const plan = contractConfig.plans[planKey];
-      if (!plan?.id) throw new Error("Plano nao configurado. Cliente criado, contrato pendente.");
-      contract = await sgpPost(`/api/crm/cliente/${clientId}/contratos`, {
-        app: SGP_APP,
-        token: SGP_TOKEN,
-        pop_id: contractConfig.popId,
-        plano_id: Number(plan.id),
-        portador_id: contractConfig.portadorId,
-        forma_cobranca_codigo: contractConfig.formaCobrancaCodigo,
-        vencimento_dia: contractConfig.vencimentoDia,
-        login: cpf,
-        senha: "sgfibra",
-        modoaquisicao: contractConfig.modoAquisicao,
-        os_instalacao: contractConfig.osInstalacao,
-        conteudo: "Nova instalacao solicitada pelo formulario publico.",
-        endereco_cobranca: address,
-        endereco_instalacao: address
-      });
-    }
     json(res, 200, {
       ok: true,
       message: contract
