@@ -10,6 +10,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - `SGP_TOKEN`
    - `SESSION_SECRET`
    - `SGP_ATTACH_PATH`, caso o endpoint de anexo do SGP seja diferente do padrao
+   - `PLANS_JSON`, mantendo apenas planos de internet no formulario publico
    - demais IDs de contrato, se for criar contrato automaticamente
 3. No Render, cadastre o dominio:
    - `cadastro.sgfibra.com.br`

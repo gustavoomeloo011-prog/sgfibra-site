@@ -31,3 +31,5 @@ services:
         value: /api/crm/cliente/{id}/anexos
       - key: SGP_ATTACH_FIELD
         value: files
+      - key: PLANS_JSON
+        value: '{"500-mega-internet":{"id":0,"name":"500 Mega - Internet fibra"},"700-mega-internet":{"id":0,"name":"700 Mega - Internet fibra"}}'

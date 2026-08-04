@@ -19,6 +19,11 @@ const SGP_ATTACH_FIELD = process.env.SGP_ATTACH_FIELD || "files";
 const sessions = new Map();
 const rates = new Map();
 
+const internetOnlyPlans = {
+  "500-mega-internet": { id: 0, name: "500 Mega - Internet fibra" },
+  "700-mega-internet": { id: 0, name: "700 Mega - Internet fibra" }
+};
+
 const contractConfig = {
   popId: Number(process.env.CONTRACT_POP_ID || 0),
   portadorId: Number(process.env.CONTRACT_PORTADOR_ID || 0),
@@ -36,6 +41,17 @@ function parsePlans(value) {
   } catch {
     return {};
   }
+}
+
+function isInternetOnlyPlan(key, plan) {
+  const text = `${key} ${plan?.name || ""}`.toLowerCase();
+  const blocked = ["tv", "globo", "globoplay", "premiere", "telecine", "sportv", "espn", "voip", "telefone"];
+  return !blocked.some((term) => text.includes(term));
+}
+
+function publicPlanEntries() {
+  const entries = Object.entries(contractConfig.plans).filter(([key, plan]) => isInternetOnlyPlan(key, plan));
+  return entries.length ? entries : Object.entries(internetOnlyPlans);
 }
 
 function clean(value, max = 180) {
@@ -189,7 +205,7 @@ function json(res, status, payload) {
 }
 
 function htmlPage(csrf) {
-  const planOptions = Object.entries(contractConfig.plans).map(([key, plan]) => (
+  const planOptions = publicPlanEntries().map(([key, plan]) => (
     `<label class="plan-option"><input type="radio" name="plan" value="${escapeHtml(key)}"><span>${escapeHtml(plan.name || key)}</span></label>`
   )).join("");
 
