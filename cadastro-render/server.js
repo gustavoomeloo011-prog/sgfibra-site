@@ -1,5 +1,7 @@
 const crypto = require("crypto");
+const fs = require("fs");
 const http = require("http");
+const path = require("path");
 const { URL } = require("url");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -18,6 +20,7 @@ const SGP_ATTACH_FIELD = process.env.SGP_ATTACH_FIELD || "files";
 
 const sessions = new Map();
 const rates = new Map();
+const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
 
 const internetOnlyPlans = {
   "300": { id: 1, name: "300 Mega" },
@@ -313,11 +316,11 @@ function htmlPage(csrf) {
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}.document-field{background:#fff;border:1px solid #f3c86a;border-radius:8px;padding:12px}.document-field small{color:#6f5430;font-weight:700}.camera-actions{display:flex;gap:8px;flex-wrap:wrap}.camera-button,.file-button{background:#06172f;font-size:14px;min-height:42px;padding:10px 12px}.file-button{background:#fff;color:#06172f;border:1px solid #d8b35a}.doc-preview{border:1px dashed #d8b35a;border-radius:8px;color:#6f5430;font-size:13px;font-weight:800;margin-top:8px;min-height:42px;padding:10px;background:#fffdf7}
-    .camera-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px}.camera-modal.is-open{display:flex}.camera-panel{width:min(100%,760px);color:#fff}.camera-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.camera-top strong{font-size:20px}.camera-close{background:rgba(255,255,255,.12);min-height:40px;padding:8px 12px}.camera-stage{position:relative;background:#000;border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;aspect-ratio:4/3}.camera-stage video{width:100%;height:100%;object-fit:cover;display:block}.document-guide{position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1.58/1;transform:translate(-50%,-50%);border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.34),0 0 34px rgba(255,179,26,.55)}.document-guide:before,.document-guide:after{content:"";position:absolute;width:26px;height:26px;border-color:#fff}.document-guide:before{left:12px;top:12px;border-left:3px solid;border-top:3px solid}.document-guide:after{right:12px;bottom:12px;border-right:3px solid;border-bottom:3px solid}.camera-help{display:grid;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#f8fbff;margin-top:12px;padding:12px}.camera-help span{color:#ffd77b;font-weight:900}.camera-bottom{display:flex;gap:10px;margin-top:12px}.capture-button{flex:1;background:var(--gold);color:#06172f}.camera-fallback{background:transparent;border:1px solid rgba(255,255,255,.4)}
+    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}.document-field{background:#fff;border:1px solid #f3c86a;border-radius:8px;padding:12px}.document-title{display:block;color:#263f5c;font-weight:900;margin-bottom:7px}.document-field small{display:block;color:#6f5430;font-weight:700}.file-input{height:1px;left:-9999px;opacity:0;position:absolute;width:1px}.camera-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.camera-button,.file-button{background:#06172f;font-size:14px;min-height:42px;padding:10px 12px}.file-button{background:#fff;color:#06172f;border:1px solid #d8b35a}.doc-preview{border:1px dashed #d8b35a;border-radius:8px;color:#6f5430;font-size:13px;font-weight:800;margin-top:8px;min-height:42px;padding:10px;background:#fffdf7}
+    .camera-modal,.success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.camera-modal.is-open,.success-modal.is-open{display:flex}.camera-panel{width:min(100%,760px);color:#fff}.camera-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.camera-top strong{font-size:20px}.camera-close{background:rgba(255,255,255,.12);min-height:40px;padding:8px 12px}.camera-stage{position:relative;background:#000;border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;aspect-ratio:4/3}.camera-stage video{width:100%;height:100%;object-fit:cover;display:block}.document-guide{position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1.58/1;transform:translate(-50%,-50%);border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.34),0 0 34px rgba(255,179,26,.55)}.document-guide:before,.document-guide:after{content:"";position:absolute;width:26px;height:26px;border-color:#fff}.document-guide:before{left:12px;top:12px;border-left:3px solid;border-top:3px solid}.document-guide:after{right:12px;bottom:12px;border-right:3px solid;border-bottom:3px solid}.camera-help{display:grid;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#f8fbff;margin-top:12px;padding:12px}.camera-help span{color:#ffd77b;font-weight:900}.camera-bottom{display:flex;gap:10px;margin-top:12px}.capture-button{flex:1;background:var(--gold);color:#06172f}.camera-fallback{background:transparent;border:1px solid rgba(255,255,255,.4)}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
-    button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.ok{background:#dcfce7;color:#166534;display:block}.result.error{background:#fee2e2;color:#991b1b;display:block}.result-card{display:grid;gap:8px}.result-card strong{font-size:20px}.result-card span{font-size:15px}.protocol{display:inline-block;background:#fff;border:1px solid #86efac;border-radius:8px;color:#064e3b;font-size:18px;margin-top:4px;padding:8px 10px}
-    @media(max-width:720px){body{background:#f4f8fc}.grid,.documents-grid{grid-template-columns:1fr}header,form{padding:24px}}
+    button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.error{background:#fee2e2;color:#991b1b;display:block}.success-card{background:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.35);color:#102033;display:grid;gap:14px;justify-items:center;max-width:440px;padding:26px;text-align:center;width:min(100%,440px)}.success-card img{height:auto;max-width:190px;width:58%}.success-card strong{font-size:24px;line-height:1.15}.success-card p{color:#39536f;margin:0}.protocol{display:inline-block;background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;color:#5f3a00;font-size:20px;font-weight:900;margin-top:2px;padding:10px 12px}.success-close{width:100%}
+    @media(max-width:720px){body{background:#f4f8fc}.grid,.documents-grid{grid-template-columns:1fr}main{display:block;padding:0}.wrap{border:0;border-radius:0;min-height:100vh;width:100%;box-shadow:none}header{padding:22px}form{gap:14px;padding:18px}.documents{padding:12px}.document-field{padding:10px}.camera-actions,.camera-bottom{display:grid;grid-template-columns:1fr}.camera-modal,.success-modal{align-items:flex-start;padding:12px}.camera-panel{padding-top:8px}.camera-stage{max-height:42vh}.camera-help{font-size:14px}.success-card{margin-top:26px;padding:22px 16px}}
   </style>
 </head>
 <body>
@@ -352,7 +355,8 @@ function htmlPage(csrf) {
         <p>Envie uma foto da frente e outra do verso do documento para conferência de identidade.</p>
         <div class="documents-grid">
           <div class="document-field">
-            <label>Frente do documento<input name="documento_frente" type="file" accept="image/*,application/pdf" capture="environment" required></label>
+            <span class="document-title">Frente do documento</span>
+            <input class="file-input" name="documento_frente" type="file" accept="image/*,application/pdf">
             <small>Encaixe a frente do documento na moldura.</small>
             <div class="camera-actions">
               <button class="camera-button" type="button" data-capture-target="documento_frente" data-capture-label="frente do documento">Abrir câmera</button>
@@ -361,7 +365,8 @@ function htmlPage(csrf) {
             <div class="doc-preview" data-preview="documento_frente">Nenhuma foto selecionada.</div>
           </div>
           <div class="document-field">
-            <label>Verso do documento<input name="documento_verso" type="file" accept="image/*,application/pdf" capture="environment" required></label>
+            <span class="document-title">Verso do documento</span>
+            <input class="file-input" name="documento_verso" type="file" accept="image/*,application/pdf">
             <small>Encaixe o verso do documento na moldura.</small>
             <div class="camera-actions">
               <button class="camera-button" type="button" data-capture-target="documento_verso" data-capture-label="verso do documento">Abrir câmera</button>
@@ -398,9 +403,22 @@ function htmlPage(csrf) {
     </div>
   </div>
 </div>
+<div class="success-modal" id="success-modal" aria-hidden="true">
+  <div class="success-card">
+    <img src="/logo.png" alt="SG Fibra">
+    <strong id="success-title">Pre-cadastro concluido</strong>
+    <span class="protocol" id="success-protocol">ID do pre-cadastro: -</span>
+    <p>Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.</p>
+    <button class="success-close" type="button" id="success-close">Fechar</button>
+  </div>
+</div>
 <script>
   const form = document.querySelector("#cadastro-form");
   const result = document.querySelector("#result");
+  const successModal = document.querySelector("#success-modal");
+  const successTitle = document.querySelector("#success-title");
+  const successProtocol = document.querySelector("#success-protocol");
+  const successClose = document.querySelector("#success-close");
   const digits = (value) => value.replace(/\\D+/g, "");
   form.datanasc.addEventListener("input", () => {
     const value = digits(form.datanasc.value).slice(0, 8);
@@ -483,6 +501,10 @@ function htmlPage(csrf) {
     if (activeFileInput) activeFileInput.click();
     stopCamera();
   });
+  successClose.addEventListener("click", () => {
+    successModal.classList.remove("is-open");
+    successModal.setAttribute("aria-hidden", "true");
+  });
   cameraCapture.addEventListener("click", () => {
     if (!activeFileInput || !cameraVideo.videoWidth) return;
     const canvas = document.createElement("canvas");
@@ -541,19 +563,12 @@ function htmlPage(csrf) {
         const suffix = data.support ? " Código: " + data.support : "";
         throw new Error((data.error || "Nao foi possivel enviar.") + suffix);
       }
-      result.className = "result ok";
+      result.className = "result";
       result.innerHTML = "";
-      const card = document.createElement("div");
-      card.className = "result-card";
-      const title = document.createElement("strong");
-      title.textContent = data.message || "Cadastro feito com sucesso.";
-      const protocol = document.createElement("span");
-      protocol.className = "protocol";
-      protocol.textContent = data.protocol ? "ID do pre-cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
-      const note = document.createElement("span");
-      note.textContent = "Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.";
-      card.append(title, protocol, note);
-      result.appendChild(card);
+      successTitle.textContent = data.message || "Pre-cadastro concluido";
+      successProtocol.textContent = data.protocol ? "ID do pre-cadastro: " + data.protocol : "Cadastro recebido pela SG Fibra";
+      successModal.classList.add("is-open");
+      successModal.setAttribute("aria-hidden", "false");
       form.reset();
     } catch (error) {
       result.className = "result error";
@@ -810,6 +825,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
+    if (req.method === "GET" && url.pathname === "/logo.png") {
+      const logo = fs.readFileSync(logoPath);
+      return send(res, 200, logo, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
+    }
     if (req.method === "GET" && url.pathname === "/") {
       const session = makeSession(req, res);
       return send(res, 200, htmlPage(session.csrf), { "Content-Type": "text/html; charset=utf-8" });
