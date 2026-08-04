@@ -58,12 +58,43 @@ function validCpf(value) {
   return true;
 }
 
-function validDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
+function parseBirthDate(value) {
+  const text = String(value || "").trim();
+  let day;
+  let month;
+  let year;
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (br) {
+    day = Number(br[1]);
+    month = Number(br[2]);
+    year = Number(br[3]);
+  } else if (iso) {
+    year = Number(iso[1]);
+    month = Number(iso[2]);
+    day = Number(iso[3]);
+  } else {
+    return null;
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+function validBirthDate(value) {
+  const date = parseBirthDate(value);
+  if (!date) return false;
   const now = new Date();
   const age = now.getUTCFullYear() - date.getUTCFullYear();
   return age >= 16 && age <= 120;
+}
+
+function formatBirthDate(value) {
+  const date = parseBirthDate(value);
+  if (!date) return "";
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${date.getUTCFullYear()}`;
 }
 
 function safeFilename(value, fallback) {
@@ -170,7 +201,7 @@ function htmlPage(csrf) {
         <label>Nome completo<input name="nome" autocomplete="name" required></label>
         <label>CPF<input name="cpfcnpj" inputmode="numeric" autocomplete="off" required></label>
         <label>RG<input name="rg" autocomplete="off" required></label>
-        <label>Data de nascimento<input name="datanasc" type="date" required></label>
+        <label>Data de nascimento<input name="datanasc" inputmode="numeric" autocomplete="bday" placeholder="DD/MM/AAAA" maxlength="10" required></label>
         <label>Celular/WhatsApp<input name="celular" type="tel" autocomplete="tel" required></label>
         <label class="full">E-mail<input name="email" type="email" autocomplete="email" required></label>
         <label>CEP<input name="cep" inputmode="numeric" autocomplete="postal-code" required></label>
@@ -237,6 +268,11 @@ function htmlPage(csrf) {
   const form = document.querySelector("#cadastro-form");
   const result = document.querySelector("#result");
   const digits = (value) => value.replace(/\\D+/g, "");
+  form.datanasc.addEventListener("input", () => {
+    const value = digits(form.datanasc.value).slice(0, 8);
+    const parts = [value.slice(0, 2), value.slice(2, 4), value.slice(4, 8)].filter(Boolean);
+    form.datanasc.value = parts.join("/");
+  });
   const cameraModal = document.querySelector("#camera-modal");
   const cameraVideo = document.querySelector("#camera-video");
   const cameraTitle = document.querySelector("#camera-title");
@@ -491,7 +527,7 @@ async function handleCadastro(req, res) {
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   if (!validCpf(cpf)) return json(res, 422, { error: "Informe um CPF valido." });
-  if (!validDate(data.datanasc)) return json(res, 422, { error: "Informe uma data de nascimento valida." });
+  if (!validBirthDate(data.datanasc)) return json(res, 422, { error: "Informe a data de nascimento no formato DD/MM/AAAA." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
   if (onlyDigits(data.celular).length < 10) return json(res, 422, { error: "Informe um celular valido." });
   const documents = [
@@ -521,7 +557,7 @@ async function handleCadastro(req, res) {
     identidade: clean(data.rg, 30),
     email: clean(data.email, 150),
     celular: onlyDigits(data.celular),
-    datanasc: new Date(data.datanasc).toLocaleDateString("pt-BR", { timeZone: "UTC" }),
+    datanasc: formatBirthDate(data.datanasc),
     endereco: address,
     observacao: `Cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos enviados: frente e verso.`
   };
