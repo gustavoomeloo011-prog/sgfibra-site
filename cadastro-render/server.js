@@ -11,7 +11,8 @@ const SGP_TOKEN = process.env.SGP_TOKEN || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
-const CONTRACT_ENABLED = String(process.env.CONTRACT_ENABLED || "false") === "true";
+const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === "true";
+const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
 const sessions = new Map();
 const rates = new Map();
 const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
@@ -23,11 +24,13 @@ const internetOnlyPlans = {
 };
 
 const contractConfig = {
-  popId: Number(process.env.CONTRACT_POP_ID || 0),
-  portadorId: Number(process.env.CONTRACT_PORTADOR_ID || 0),
+  popId: Number(process.env.CONTRACT_POP_ID || 1),
+  nasId: Number(process.env.CONTRACT_NAS_ID || 1),
+  portadorId: Number(process.env.CONTRACT_PORTADOR_ID || 1),
+  formacobrancaId: Number(process.env.CONTRACT_FORMACOBRANCA_ID || process.env.CONTRACT_FORMA_COBRANCA_CODIGO || 6),
   formaCobrancaCodigo: Number(process.env.CONTRACT_FORMA_COBRANCA_CODIGO || 6),
   vencimentoDia: Number(process.env.CONTRACT_VENCIMENTO_DIA || 10),
-  modoAquisicao: Number(process.env.CONTRACT_MODOAQUISICAO || 2),
+  modoAquisicao: Number(process.env.CONTRACT_MODOAQUISICAO || 1),
   osInstalacao: String(process.env.CONTRACT_OS_INSTALACAO || "true") === "true",
   plans: parsePlans(process.env.PLANS_JSON || "{}")
 };
@@ -67,7 +70,15 @@ function isInternetOnlyPlan(key, plan) {
 }
 
 function publicPlanEntries() {
-  const entries = Object.entries(contractConfig.plans).filter(([key, plan]) => isInternetOnlyPlan(key, plan));
+  const merged = { ...internetOnlyPlans };
+  Object.entries(contractConfig.plans).forEach(([key, plan]) => {
+    if (internetOnlyPlans[key]) {
+      merged[key] = plan;
+    } else if (!knownPlanIds[key]) {
+      merged[key] = plan;
+    }
+  });
+  const entries = Object.entries(merged).filter(([key, plan]) => isInternetOnlyPlan(key, plan));
   return entries.length ? entries : Object.entries(internetOnlyPlans);
 }
 
@@ -312,6 +323,8 @@ function htmlPage(csrf) {
         <label>CPF<input name="cpfcnpj" inputmode="numeric" autocomplete="off" required></label>
         <label>RG<input name="rg" autocomplete="off" required></label>
         <label>Data de nascimento<input name="datanasc" inputmode="numeric" autocomplete="bday" placeholder="DD/MM/AAAA" maxlength="10" required></label>
+        <label>Sexo<select name="sexo" required><option value="">Selecione</option><option value="F">Feminino</option><option value="M">Masculino</option></select></label>
+        <label>Estado civil<select name="estadocivil" required><option value="">Selecione</option><option value="S">Solteiro(a)</option><option value="C">Casado(a)</option><option value="D">Divorciado(a)</option><option value="V">Viuvo(a)</option></select></label>
         <label>Celular/WhatsApp<input name="celular" type="tel" autocomplete="tel" required></label>
         <label class="full">E-mail<input name="email" type="email" autocomplete="email" required></label>
         <label>CEP<input name="cep" inputmode="numeric" autocomplete="postal-code" required></label>
@@ -492,6 +505,44 @@ async function sgpPost(path, payload) {
   return data;
 }
 
+async function geocodeAddress(address) {
+  if (DEFAULT_MAP_LL) return DEFAULT_MAP_LL;
+  const parts = [
+    address.logradouro,
+    address.numero,
+    address.bairro,
+    address.cidade,
+    address.uf,
+    address.cep,
+    "Brasil"
+  ].filter(Boolean);
+  const query = parts.join(", ");
+  if (!query.trim()) return "";
+  try {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("countrycodes", "br");
+    url.searchParams.set("q", query);
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "SGFibraCadastro/1.0 contato@sgfibra.com.br"
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) return "";
+    const results = await response.json();
+    const first = Array.isArray(results) ? results[0] : null;
+    const lat = Number(first?.lat);
+    const lon = Number(first?.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+    return `${lat.toFixed(7)},${lon.toFixed(7)}`;
+  } catch {
+    return "";
+  }
+}
+
 function ensureOrigin(req) {
   if (!PUBLIC_BASE_URL || !req.headers.origin) return true;
   try {
@@ -511,12 +562,14 @@ async function handleCadastro(req, res) {
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
-  const required = ["nome", "cpfcnpj", "rg", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
+  const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   const phone = normalizePhone(data.celular);
   if (!validCpf(cpf)) return json(res, 422, { error: "Informe um CPF valido." });
   if (!validBirthDate(data.datanasc)) return json(res, 422, { error: "Informe a data de nascimento no formato DD/MM/AAAA." });
+  if (!["F", "M"].includes(String(data.sexo))) return json(res, 422, { error: "Escolha o sexo." });
+  if (!["S", "C", "D", "V"].includes(String(data.estadocivil))) return json(res, 422, { error: "Escolha o estado civil." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
   if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
   const dailyLimitKeys = rateLimitKeys(req, data);
@@ -535,9 +588,11 @@ async function handleCadastro(req, res) {
   };
   const selectedPlanId = planIdFor(data.plan);
   const selectedPlanLabel = planLabelFor(data.plan);
+  const mapLl = await geocodeAddress(address);
   const observation = [
     "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
     `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
+    `Contrato automatico: PPPoE login ${cpf}, senha sgfibra, aquisicao comodato.`,
     `RG: ${clean(data.rg, 30)}.`,
     `WhatsApp: ${phone}.`,
     `E-mail: ${clean(data.email, 150)}.`,
@@ -556,7 +611,8 @@ async function handleCadastro(req, res) {
     email: clean(data.email, 150),
     celular: phone,
     datanasc: formatBirthDateIso(data.datanasc),
-    sexo: "F",
+    sexo: clean(data.sexo, 1).toUpperCase(),
+    estadocivil: clean(data.estadocivil, 1).toUpperCase(),
     logradouro: address.logradouro,
     numero: address.numero,
     complemento: address.complemento,
@@ -566,7 +622,13 @@ async function handleCadastro(req, res) {
     cep: address.cep,
     pais: address.pais,
     pontoreferencia: address.pontoreferencia,
+    map_ll: mapLl,
     vencimento_id: vencimentoId(),
+    login: cpf,
+    senha: "sgfibra",
+    central_senha: "sgfibra",
+    modoaquisicao: 1,
+    precadastro_ativar: PRECADASTRO_ATIVAR ? 1 : 0,
     observacao: observation
   };
 
@@ -575,14 +637,11 @@ async function handleCadastro(req, res) {
     clientPayload.planointernet_id = selectedPlanId;
   }
   if (contractConfig.popId) clientPayload.pop_id = contractConfig.popId;
+  if (contractConfig.nasId) clientPayload.nas_id = contractConfig.nasId;
   if (contractConfig.portadorId) clientPayload.portador_id = contractConfig.portadorId;
+  if (contractConfig.formacobrancaId) clientPayload.formacobranca_id = contractConfig.formacobrancaId;
   if (contractConfig.modoAquisicao || contractConfig.modoAquisicao === 0) clientPayload.modoaquisicao = contractConfig.modoAquisicao;
   clientPayload.os_instalacao = contractConfig.osInstalacao;
-  if (CONTRACT_ENABLED) {
-    clientPayload.precadastro_ativar = 1;
-    clientPayload.login = cpf;
-    clientPayload.senha = "sgfibra";
-  }
 
   try {
     const client = await sgpPost("/api/precadastro/F", clientPayload);

@@ -17,19 +17,27 @@ services:
         generateValue: true
       - key: DAILY_LIMIT
         value: 2
-      - key: CONTRACT_ENABLED
-        value: false
+      - key: PRECADASTRO_ATIVAR
+        value: true
       - key: PUBLIC_BASE_URL
         value: https://cadastro.sgfibra.com.br
-      - key: MAX_DOCUMENT_SIZE
-        value: 4194304
-      - key: ATTACH_DOCUMENTS
+      - key: CONTRACT_POP_ID
+        value: 1
+      - key: CONTRACT_NAS_ID
+        value: 1
+      - key: CONTRACT_PORTADOR_ID
+        value: 1
+      - key: CONTRACT_FORMACOBRANCA_ID
+        value: 6
+      - key: CONTRACT_VENCIMENTO_DIA
+        value: 10
+      - key: CONTRACT_VENCIMENTO_ID
+        value: 2
+      - key: CONTRACT_MODOAQUISICAO
+        value: 1
+      - key: CONTRACT_OS_INSTALACAO
         value: true
-      - key: REQUIRE_DOCUMENT_ATTACH
-        value: false
-      - key: SGP_ATTACH_PATH
-        value: /api/crm/cliente/{id}/anexos
-      - key: SGP_ATTACH_FIELD
-        value: files
+      - key: DEFAULT_MAP_LL
+        value: ""
       - key: PLANS_JSON
-        value: '{"500-mega-internet":{"id":0,"name":"500 Mega - Internet fibra"},"700-mega-internet":{"id":0,"name":"700 Mega - Internet fibra"}}'
+        value: '{"300":{"id":1,"name":"300 Mega"},"500":{"id":3,"name":"500 Mega"},"700":{"id":4,"name":"700 Mega"}}'
