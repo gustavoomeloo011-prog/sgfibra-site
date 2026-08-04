@@ -74,6 +74,10 @@ function errorSummary(error) {
   return clean(error?.message || error, 500);
 }
 
+function isDuplicateCpfError(error) {
+  return /j[aá]\s*existe.*cpf|cpf.*j[aá]\s*existe|cliente.*cpf informado/i.test(errorSummary(error));
+}
+
 function onlyDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
@@ -703,6 +707,11 @@ async function handleCadastro(req, res) {
       protocol: String(contract?.id || contract?.contrato_id || clientId || "")
     });
   } catch (error) {
+    if (isDuplicateCpfError(error)) {
+      return json(res, 409, {
+        error: "Este CPF ja possui cadastro na SG Fibra. Fale com um atendente para localizar ou atualizar o cadastro."
+      });
+    }
     const code = supportCode();
     console.error(`[SG cadastro ${code}]`, errorSummary(error));
     json(res, 502, {
