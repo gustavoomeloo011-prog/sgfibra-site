@@ -5,6 +5,29 @@ if (window.location.hostname === "gustavoomeloo011-prog.github.io" && window.loc
   window.location.replace(`https://${officialHost}${cleanPath}${window.location.search}${window.location.hash}`);
 }
 
+const cookieConsentKey = "sgfibra_cookie_consent";
+
+if (!localStorage.getItem(cookieConsentKey)) {
+  const cookieBanner = document.createElement("section");
+  cookieBanner.className = "cookie-consent";
+  cookieBanner.setAttribute("aria-label", "Aviso de cookies");
+  cookieBanner.innerHTML = `
+    <div>
+      <strong>Usamos cookies</strong>
+      <span>Utilizamos cookies essenciais para melhorar sua navegação e manter o site funcionando corretamente.</span>
+    </div>
+    <button type="button">Aceitar</button>
+  `;
+
+  cookieBanner.querySelector("button").addEventListener("click", () => {
+    localStorage.setItem(cookieConsentKey, "accepted");
+    cookieBanner.classList.add("is-hidden");
+    window.setTimeout(() => cookieBanner.remove(), 220);
+  });
+
+  document.body.appendChild(cookieBanner);
+}
+
 const menuToggle = document.querySelector(".menu-toggle");
 const mainNav = document.querySelector(".main-nav");
 const navFolders = document.querySelectorAll(".nav-folder");
