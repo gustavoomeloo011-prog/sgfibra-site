@@ -134,20 +134,34 @@ function sign(value) {
   return crypto.createHmac("sha256", SESSION_SECRET).update(value).digest("hex");
 }
 
+function signedCookieValue(value) {
+  return `${value}.${sign(value)}`;
+}
+
+function readSignedCookie(req, name) {
+  const cookie = parseCookies(req.headers.cookie || "")[name] || "";
+  const [value, signature] = cookie.split(".");
+  if (!value || !signature || signature !== sign(value)) return "";
+  return value;
+}
+
 function makeSession(req, res) {
   const sid = crypto.randomBytes(24).toString("hex");
   const csrf = crypto.randomBytes(24).toString("hex");
+  const deviceId = readSignedCookie(req, "sg_device") || crypto.randomBytes(24).toString("hex");
   const host = String(req.headers.host || "");
   const secure = !/^localhost(:|$)|^127\.0\.0\.1(:|$)/.test(host);
   sessions.set(sid, { csrf, createdAt: Date.now() });
-  res.setHeader("Set-Cookie", `sg_cadastro=${sid}.${sign(sid)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=7200`);
+  res.setHeader("Set-Cookie", [
+    `sg_cadastro=${signedCookieValue(sid)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=7200`,
+    `sg_device=${signedCookieValue(deviceId)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=2592000`
+  ]);
   return { sid, csrf };
 }
 
 function getSession(req) {
-  const cookie = parseCookies(req.headers.cookie || "").sg_cadastro || "";
-  const [sid, signature] = cookie.split(".");
-  if (!sid || !signature || signature !== sign(sid)) return null;
+  const sid = readSignedCookie(req, "sg_cadastro");
+  if (!sid) return null;
   const session = sessions.get(sid);
   if (!session || Date.now() - session.createdAt > 7200000) return null;
   return { sid, ...session };
@@ -469,14 +483,38 @@ function clientIp(req) {
   return forwarded || req.socket.remoteAddress || "unknown";
 }
 
-function rateAllowed(req) {
+function rateKey(scope, value) {
+  return crypto.createHash("sha256").update(`${new Date().toISOString().slice(0, 10)}|${scope}|${value}`).digest("hex");
+}
+
+function overLimit(key) {
   const today = new Date().toISOString().slice(0, 10);
-  const key = crypto.createHash("sha256").update(`${today}|${clientIp(req)}|${req.headers["user-agent"] || ""}`).digest("hex");
   const item = rates.get(key) || { date: today, count: 0 };
   if (item.date !== today) item.count = 0;
-  if (item.count >= DAILY_LIMIT) return false;
+  return item.count >= DAILY_LIMIT;
+}
+
+function incrementLimit(key) {
+  const today = new Date().toISOString().slice(0, 10);
+  const item = rates.get(key) || { date: today, count: 0 };
+  if (item.date !== today) item.count = 0;
   item.count += 1;
   rates.set(key, item);
+}
+
+function rateAllowed(req, data) {
+  const deviceId = readSignedCookie(req, "sg_device") || "sem-device";
+  const userAgent = clean(req.headers["user-agent"] || "sem-navegador", 220);
+  const identifiers = [
+    ["ip", clientIp(req)],
+    ["dispositivo", deviceId],
+    ["navegador", `${clientIp(req)}|${userAgent}`],
+    ["cpf", onlyDigits(data.cpfcnpj)],
+    ["telefone", onlyDigits(data.celular)]
+  ].filter(([, value]) => value);
+  const keys = identifiers.map(([scope, value]) => rateKey(scope, value));
+  if (keys.some(overLimit)) return false;
+  keys.forEach(incrementLimit);
   return true;
 }
 
@@ -548,7 +586,7 @@ async function handleCadastro(req, res) {
     normalizeUpload(data.documento_frente, "frente"),
     normalizeUpload(data.documento_verso, "verso")
   ];
-  if (!rateAllowed(req)) return json(res, 429, { error: "Este dispositivo ja atingiu o limite de cadastros de hoje." });
+  if (!rateAllowed(req, data)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 envios por dia." });
 
   const address = {
     logradouro: clean(data.logradouro),
