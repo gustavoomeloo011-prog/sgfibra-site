@@ -533,6 +533,27 @@ a{
   top:0;
 }
 
+.plan-media{
+  aspect-ratio:16 / 9;
+  border-radius:8px;
+  box-shadow:0 14px 30px rgba(7,27,54,0.14);
+  margin:-6px -6px 18px;
+  object-fit:cover;
+  width:calc(100% + 12px);
+}
+
+.tv-plan-card,
+.phone-plan-card{
+  overflow:hidden;
+}
+
+.phone-plan-card h3{
+  color:var(--navy);
+  font-size:30px;
+  line-height:1.08;
+  margin-bottom:12px;
+}
+
 .plans-grid.is-carousel .plan-card{
   left:50%;
   max-width:430px;
@@ -854,6 +875,12 @@ a{
   padding:30px;
 }
 
+.home-no-ads{
+  margin-left:auto;
+  margin-right:auto;
+  max-width:980px;
+}
+
 .no-ads-highlight .eyebrow{
   color:#4b3000;
 }
@@ -892,6 +919,12 @@ a{
   grid-template-columns:minmax(0,1fr) minmax(260px,0.85fr);
   margin-top:26px;
   padding:32px;
+}
+
+.home-tv-programming{
+  margin-left:auto;
+  margin-right:auto;
+  max-width:980px;
 }
 
 .tv-programming h2{
@@ -1887,6 +1920,11 @@ a{
 
   .plan-card{
     padding:26px 22px;
+  }
+
+  .plan-media{
+    margin:-2px -2px 16px;
+    width:calc(100% + 4px);
   }
 
   .plans-grid.is-carousel .plan-card,
