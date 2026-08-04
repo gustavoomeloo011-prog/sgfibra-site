@@ -41,3 +41,19 @@ services:
         value: ""
       - key: PLANS_JSON
         value: '{"300":{"id":1,"name":"300 Mega"},"500":{"id":3,"name":"500 Mega"},"700":{"id":4,"name":"700 Mega"}}'
+      - key: CONFIRMATION_EMAIL_ENABLED
+        value: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_SECURE
+        value: true
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_REPLY_TO
+        sync: false

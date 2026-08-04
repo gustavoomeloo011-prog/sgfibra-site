@@ -35,6 +35,17 @@ const contractConfig = {
   plans: parsePlans(process.env.PLANS_JSON || "{}")
 };
 
+const emailConfig = {
+  enabled: String(process.env.CONFIRMATION_EMAIL_ENABLED || "false") === "true",
+  host: clean(process.env.SMTP_HOST || "", 180),
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: String(process.env.SMTP_SECURE || "true") === "true",
+  user: clean(process.env.SMTP_USER || "", 180),
+  pass: String(process.env.SMTP_PASS || ""),
+  from: clean(process.env.SMTP_FROM || process.env.SMTP_USER || "", 220),
+  replyTo: clean(process.env.SMTP_REPLY_TO || process.env.SMTP_FROM || process.env.SMTP_USER || "", 220)
+};
+
 const knownPlanIds = {
   "300": 1,
   "300-mega": 1,
@@ -529,6 +540,73 @@ async function latestContractIdFor(cpf) {
   }
 }
 
+function confirmationEmailReady() {
+  return emailConfig.enabled && emailConfig.host && emailConfig.port && emailConfig.user && emailConfig.pass && emailConfig.from;
+}
+
+let mailTransporter = null;
+
+function getMailTransporter() {
+  if (mailTransporter) return mailTransporter;
+  const nodemailer = require("nodemailer");
+  mailTransporter = nodemailer.createTransport({
+    host: emailConfig.host,
+    port: emailConfig.port,
+    secure: emailConfig.secure,
+    auth: {
+      user: emailConfig.user,
+      pass: emailConfig.pass
+    }
+  });
+  return mailTransporter;
+}
+
+async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimentoDay }) {
+  if (!confirmationEmailReady()) return;
+  const safeName = clean(name, 120) || "cliente";
+  const safePlan = clean(planLabel, 100) || "plano escolhido";
+  const safeContract = clean(contractId, 40) || "em analise";
+  const safeVencimento = clean(vencimentoDay, 2) || "informado";
+  const subject = "Cadastro recebido - SG Fibra";
+  const text = [
+    `Ola, ${safeName}.`,
+    "",
+    "Recebemos seu cadastro na SG Fibra e vamos dar continuidade com a contratacao do novo ponto.",
+    "",
+    `ID do contrato: ${safeContract}`,
+    `Plano escolhido: ${safePlan}`,
+    `Vencimento escolhido: dia ${safeVencimento}`,
+    "",
+    "Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.",
+    "",
+    "Atenciosamente,",
+    "SG Fibra"
+  ].join("\n");
+  const html = `
+    <div style="font-family:Arial,sans-serif;color:#102033;line-height:1.5">
+      <h2 style="color:#0066ff;margin:0 0 12px">Cadastro recebido - SG Fibra</h2>
+      <p>Ola, <strong>${escapeHtml(safeName)}</strong>.</p>
+      <p>Recebemos seu cadastro na SG Fibra e vamos dar continuidade com a contratacao do novo ponto.</p>
+      <div style="background:#f4f8ff;border:1px solid #d7e6ff;border-radius:8px;margin:18px 0;padding:14px">
+        <p style="margin:0 0 8px"><strong>ID do contrato:</strong> ${escapeHtml(safeContract)}</p>
+        <p style="margin:0 0 8px"><strong>Plano escolhido:</strong> ${escapeHtml(safePlan)}</p>
+        <p style="margin:0"><strong>Vencimento escolhido:</strong> dia ${escapeHtml(safeVencimento)}</p>
+      </div>
+      <p>Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.</p>
+      <p>Atenciosamente,<br><strong>SG Fibra</strong></p>
+    </div>
+  `;
+
+  await getMailTransporter().sendMail({
+    from: emailConfig.from,
+    to,
+    replyTo: emailConfig.replyTo || undefined,
+    subject,
+    text,
+    html
+  });
+}
+
 async function geocodeAddress(address) {
   if (DEFAULT_MAP_LL) return DEFAULT_MAP_LL;
   const parts = [
@@ -677,13 +755,23 @@ async function handleCadastro(req, res) {
       registerSuccessfulCadastro(dailyLimitKeys);
     }
     const contractId = await latestContractIdFor(cpf);
-    json(res, 200, {
+    const responsePayload = {
       ok: true,
       message: contractId
         ? "Cadastro e contrato enviados com sucesso."
         : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocolLabel: contractId ? "ID do contrato" : "ID do pre-cadastro",
       protocol: String(contractId || clientId || "")
+    };
+    json(res, 200, responsePayload);
+    sendConfirmationEmail({
+      to: clean(data.email, 150),
+      name: clean(data.nome, 120),
+      contractId: responsePayload.protocol,
+      planLabel: selectedPlanLabel,
+      vencimentoDay: selectedVencimentoDay
+    }).catch((error) => {
+      console.error("[SG email confirmacao]", errorSummary(error));
     });
   } catch (error) {
     if (isDuplicateCpfError(error)) {
