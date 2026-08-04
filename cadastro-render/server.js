@@ -115,7 +115,7 @@ function getSession(req) {
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -148,7 +148,8 @@ function htmlPage(csrf) {
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}.document-field{background:#fff;border:1px solid #f3c86a;border-radius:8px;padding:12px}.document-field small{color:#6f5430;font-weight:700}.camera-actions{display:flex;gap:8px;flex-wrap:wrap}.camera-button,.file-button{background:#06172f;font-size:14px;min-height:42px;padding:10px 12px}.file-button{background:#fff;color:#06172f;border:1px solid #d8b35a}.doc-preview{border:1px dashed #d8b35a;border-radius:8px;color:#6f5430;font-size:13px;font-weight:800;margin-top:8px;min-height:42px;padding:10px;background:#fffdf7}
+    .camera-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px}.camera-modal.is-open{display:flex}.camera-panel{width:min(100%,760px);color:#fff}.camera-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.camera-top strong{font-size:20px}.camera-close{background:rgba(255,255,255,.12);min-height:40px;padding:8px 12px}.camera-stage{position:relative;background:#000;border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;aspect-ratio:4/3}.camera-stage video{width:100%;height:100%;object-fit:cover;display:block}.document-guide{position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1.58/1;transform:translate(-50%,-50%);border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.34),0 0 34px rgba(255,179,26,.55)}.document-guide:before,.document-guide:after{content:"";position:absolute;width:26px;height:26px;border-color:#fff}.document-guide:before{left:12px;top:12px;border-left:3px solid;border-top:3px solid}.document-guide:after{right:12px;bottom:12px;border-right:3px solid;border-bottom:3px solid}.camera-help{display:grid;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#f8fbff;margin-top:12px;padding:12px}.camera-help span{color:#ffd77b;font-weight:900}.camera-bottom{display:flex;gap:10px;margin-top:12px}.capture-button{flex:1;background:var(--gold);color:#06172f}.camera-fallback{background:transparent;border:1px solid rgba(255,255,255,.4)}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
     button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.ok{background:#dcfce7;color:#166534;display:block}.result.error{background:#fee2e2;color:#991b1b;display:block}.result-card{display:grid;gap:8px}.result-card strong{font-size:20px}.result-card span{font-size:15px}.protocol{display:inline-block;background:#fff;border:1px solid #86efac;border-radius:8px;color:#064e3b;font-size:18px;margin-top:4px;padding:8px 10px}
     @media(max-width:720px){body{background:#f4f8fc}.grid,.documents-grid{grid-template-columns:1fr}header,form{padding:24px}}
@@ -185,8 +186,24 @@ function htmlPage(csrf) {
         <strong>Documento com foto</strong>
         <p>Envie uma foto da frente e outra do verso do documento para conferência de identidade.</p>
         <div class="documents-grid">
-          <label>Frente do documento<input name="documento_frente" type="file" accept="image/*,application/pdf" required></label>
-          <label>Verso do documento<input name="documento_verso" type="file" accept="image/*,application/pdf" required></label>
+          <div class="document-field">
+            <label>Frente do documento<input name="documento_frente" type="file" accept="image/*,application/pdf" capture="environment" required></label>
+            <small>Encaixe a frente do documento na moldura.</small>
+            <div class="camera-actions">
+              <button class="camera-button" type="button" data-capture-target="documento_frente" data-capture-label="frente do documento">Abrir câmera</button>
+              <button class="file-button" type="button" data-file-target="documento_frente">Escolher arquivo</button>
+            </div>
+            <div class="doc-preview" data-preview="documento_frente">Nenhuma foto selecionada.</div>
+          </div>
+          <div class="document-field">
+            <label>Verso do documento<input name="documento_verso" type="file" accept="image/*,application/pdf" capture="environment" required></label>
+            <small>Encaixe o verso do documento na moldura.</small>
+            <div class="camera-actions">
+              <button class="camera-button" type="button" data-capture-target="documento_verso" data-capture-label="verso do documento">Abrir câmera</button>
+              <button class="file-button" type="button" data-file-target="documento_verso">Escolher arquivo</button>
+            </div>
+            <div class="doc-preview" data-preview="documento_verso">Nenhuma foto selecionada.</div>
+          </div>
         </div>
       </div>
       ${planOptions ? `<div class="plans"><strong>Plano de interesse</strong><div class="plan-list">${planOptions}</div></div>` : ""}
@@ -196,10 +213,118 @@ function htmlPage(csrf) {
     </form>
   </section>
 </main>
+<div class="camera-modal" id="camera-modal" aria-hidden="true">
+  <div class="camera-panel">
+    <div class="camera-top">
+      <strong id="camera-title">Encaixe o documento</strong>
+      <button class="camera-close" type="button" id="camera-close">Fechar</button>
+    </div>
+    <div class="camera-stage">
+      <video id="camera-video" playsinline autoplay muted></video>
+      <div class="document-guide" aria-hidden="true"></div>
+    </div>
+    <div class="camera-help">
+      <span>Dica para ficar nítido</span>
+      Deixe o documento inteiro dentro da moldura, em local claro, sem reflexo e com as letras legíveis.
+    </div>
+    <div class="camera-bottom">
+      <button class="capture-button" type="button" id="camera-capture">Usar esta foto</button>
+      <button class="camera-fallback" type="button" id="camera-file">Escolher arquivo</button>
+    </div>
+  </div>
+</div>
 <script>
   const form = document.querySelector("#cadastro-form");
   const result = document.querySelector("#result");
   const digits = (value) => value.replace(/\\D+/g, "");
+  const cameraModal = document.querySelector("#camera-modal");
+  const cameraVideo = document.querySelector("#camera-video");
+  const cameraTitle = document.querySelector("#camera-title");
+  const cameraClose = document.querySelector("#camera-close");
+  const cameraCapture = document.querySelector("#camera-capture");
+  const cameraFile = document.querySelector("#camera-file");
+  let cameraStream = null;
+  let activeFileInput = null;
+
+  function updatePreview(input) {
+    const preview = document.querySelector('[data-preview="' + input.name + '"]');
+    if (!preview) return;
+    const file = input.files && input.files[0];
+    preview.textContent = file ? "Arquivo pronto: " + file.name : "Nenhuma foto selecionada.";
+  }
+
+  function setCapturedFile(input, blob) {
+    const file = new File([blob], input.name + "-" + Date.now() + ".jpg", { type: "image/jpeg" });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    updatePreview(input);
+  }
+
+  function stopCamera() {
+    if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
+    cameraStream = null;
+    cameraVideo.srcObject = null;
+    cameraModal.classList.remove("is-open");
+    cameraModal.setAttribute("aria-hidden", "true");
+  }
+
+  async function openCamera(input, label) {
+    activeFileInput = input;
+    cameraTitle.textContent = "Encaixe a " + label;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      input.click();
+      return;
+    }
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+      cameraVideo.srcObject = cameraStream;
+      cameraModal.classList.add("is-open");
+      cameraModal.setAttribute("aria-hidden", "false");
+    } catch {
+      input.click();
+    }
+  }
+
+  document.querySelectorAll("[data-capture-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const input = form.elements[button.dataset.captureTarget];
+      openCamera(input, button.dataset.captureLabel || "foto do documento");
+    });
+  });
+
+  document.querySelectorAll("[data-file-target]").forEach((button) => {
+    button.addEventListener("click", () => form.elements[button.dataset.fileTarget].click());
+  });
+
+  [form.documento_frente, form.documento_verso].forEach((input) => {
+    input.addEventListener("change", () => updatePreview(input));
+  });
+
+  cameraClose.addEventListener("click", stopCamera);
+  cameraFile.addEventListener("click", () => {
+    if (activeFileInput) activeFileInput.click();
+    stopCamera();
+  });
+  cameraCapture.addEventListener("click", () => {
+    if (!activeFileInput || !cameraVideo.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = cameraVideo.videoWidth;
+    canvas.height = cameraVideo.videoHeight;
+    canvas.getContext("2d").drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (blob) setCapturedFile(activeFileInput, blob);
+      stopCamera();
+    }, "image/jpeg", 0.9);
+  });
+
   const fileToPayload = (file) => new Promise((resolve, reject) => {
     if (!file) return reject(new Error("Envie as fotos do documento."));
     if (file.size > ${MAX_DOCUMENT_SIZE}) return reject(new Error("Cada documento deve ter ate 4 MB."));
