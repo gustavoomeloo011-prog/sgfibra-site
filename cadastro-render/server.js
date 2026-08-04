@@ -12,12 +12,6 @@ const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toSt
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 const CONTRACT_ENABLED = String(process.env.CONTRACT_ENABLED || "false") === "true";
-const MAX_DOCUMENT_SIZE = Number(process.env.MAX_DOCUMENT_SIZE || 4 * 1024 * 1024);
-const ATTACH_DOCUMENTS = String(process.env.ATTACH_DOCUMENTS || "true") === "true";
-const REQUIRE_DOCUMENT_ATTACH = String(process.env.REQUIRE_DOCUMENT_ATTACH || "false") === "true";
-const SGP_ATTACH_PATH = process.env.SGP_ATTACH_PATH || "/api/crm/cliente/{id}/anexos";
-const SGP_ATTACH_FIELD = process.env.SGP_ATTACH_FIELD || "files";
-
 const sessions = new Map();
 const rates = new Map();
 const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
@@ -81,6 +75,12 @@ function planIdFor(key) {
   const planKey = clean(key, 60);
   const plan = contractConfig.plans[planKey] || internetOnlyPlans[planKey];
   return Number(plan?.id || knownPlanIds[planKey] || 0);
+}
+
+function planLabelFor(key) {
+  const planKey = clean(key, 60);
+  const plan = contractConfig.plans[planKey] || internetOnlyPlans[planKey];
+  return clean(plan?.name || planKey || "Plano nao informado", 100);
 }
 
 function vencimentoId() {
@@ -206,32 +206,6 @@ function formatBirthDateIso(value) {
   return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
-function safeFilename(value, fallback) {
-  const cleaned = String(value || "").replace(/[^\w.\-]+/g, "_").slice(0, 80);
-  return cleaned || fallback;
-}
-
-function normalizeUpload(file, label) {
-  if (!file || typeof file !== "object") throw new Error(`Envie a foto ${label} do documento.`);
-  const filename = safeFilename(file.name, `documento-${label}.jpg`);
-  const mimetype = clean(file.type, 80);
-  const base64 = String(file.base64 || "").replace(/^data:[^;]+;base64,/, "");
-  const buffer = Buffer.from(base64, "base64");
-  const allowed = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
-  if (!allowed.has(mimetype)) throw new Error("Envie documento em JPG, PNG, WEBP ou PDF.");
-  if (!buffer.length || buffer.length > MAX_DOCUMENT_SIZE) throw new Error("Cada documento deve ter ate 4 MB.");
-  if (!validDocumentBytes(buffer, mimetype)) throw new Error("O arquivo do documento nao parece valido.");
-  return { label, filename, mimetype, buffer };
-}
-
-function validDocumentBytes(buffer, mimetype) {
-  if (mimetype === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-  if (mimetype === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  if (mimetype === "image/webp") return buffer.subarray(0, 4).toString("ascii") === "RIFF" && buffer.subarray(8, 12).toString("ascii") === "WEBP";
-  if (mimetype === "application/pdf") return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
-  return false;
-}
-
 function parseCookies(header = "") {
   return Object.fromEntries(header.split(";").map((item) => {
     const [key, ...rest] = item.trim().split("=");
@@ -278,9 +252,9 @@ function getSession(req) {
 
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
     "Cache-Control": "no-store",
-    "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), payment=(), usb=()",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     "Referrer-Policy": "no-referrer",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Cross-Origin-Opener-Policy": "same-origin",
@@ -299,7 +273,7 @@ function json(res, status, payload) {
 
 function htmlPage(csrf) {
   const planOptions = publicPlanEntries().map(([key, plan]) => (
-    `<label class="plan-option"><input type="radio" name="plan" value="${escapeHtml(key)}"><span>${escapeHtml(plan.name || key)}</span></label>`
+    `<label class="plan-option"><input type="radio" name="plan" value="${escapeHtml(key)}" required><span>${escapeHtml(plan.name || key)}</span></label>`
   )).join("");
 
   return `<!doctype html>
@@ -316,11 +290,10 @@ function htmlPage(csrf) {
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
-    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;padding:16px}.documents strong{display:block;color:#5f3a00;margin-bottom:6px}.documents p{color:#6f5430;margin:0 0 14px}.documents-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}.document-field{background:#fff;border:1px solid #f3c86a;border-radius:8px;padding:12px}.document-title{display:block;color:#263f5c;font-weight:900;margin-bottom:7px}.document-field small{display:block;color:#6f5430;font-weight:700}.file-input{height:1px;left:-9999px;opacity:0;position:absolute;width:1px}.camera-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.camera-button,.file-button{background:#06172f;font-size:14px;min-height:42px;padding:10px 12px}.file-button{background:#fff;color:#06172f;border:1px solid #d8b35a}.doc-preview{border:1px dashed #d8b35a;border-radius:8px;color:#6f5430;font-size:13px;font-weight:800;margin-top:8px;min-height:42px;padding:10px;background:#fffdf7}
-    .camera-modal,.success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.camera-modal.is-open,.success-modal.is-open{display:flex}.camera-panel{width:min(100%,760px);color:#fff}.camera-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.camera-top strong{font-size:20px}.camera-close{background:rgba(255,255,255,.12);min-height:40px;padding:8px 12px}.camera-stage{position:relative;background:#000;border:1px solid rgba(255,255,255,.18);border-radius:12px;overflow:hidden;aspect-ratio:4/3}.camera-stage video{width:100%;height:100%;object-fit:cover;display:block}.document-guide{position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1.58/1;transform:translate(-50%,-50%);border:3px solid var(--gold);border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.34),0 0 34px rgba(255,179,26,.55)}.document-guide:before,.document-guide:after{content:"";position:absolute;width:26px;height:26px;border-color:#fff}.document-guide:before{left:12px;top:12px;border-left:3px solid;border-top:3px solid}.document-guide:after{right:12px;bottom:12px;border-right:3px solid;border-bottom:3px solid}.camera-help{display:grid;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#f8fbff;margin-top:12px;padding:12px}.camera-help span{color:#ffd77b;font-weight:900}.camera-bottom{display:flex;gap:10px;margin-top:12px}.capture-button{flex:1;background:var(--gold);color:#06172f}.camera-fallback{background:transparent;border:1px solid rgba(255,255,255,.4)}
+    .success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.success-modal.is-open{display:flex}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
     button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.error{background:#fee2e2;color:#991b1b;display:block}.success-card{background:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.35);color:#102033;display:grid;gap:14px;justify-items:center;max-width:440px;padding:26px;text-align:center;width:min(100%,440px)}.success-card img{height:auto;max-width:190px;width:58%}.success-card strong{font-size:24px;line-height:1.15}.success-card p{color:#39536f;margin:0}.protocol{display:inline-block;background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;color:#5f3a00;font-size:20px;font-weight:900;margin-top:2px;padding:10px 12px}.success-close{width:100%}
-    @media(max-width:720px){body{background:#f4f8fc}.grid,.documents-grid{grid-template-columns:1fr}main{display:block;padding:0}.wrap{border:0;border-radius:0;min-height:100vh;width:100%;box-shadow:none}header{padding:22px}form{gap:14px;padding:18px}.documents{padding:12px}.document-field{padding:10px}.camera-actions,.camera-bottom{display:grid;grid-template-columns:1fr}.camera-modal,.success-modal{align-items:flex-start;padding:12px}.camera-panel{padding-top:8px}.camera-stage{max-height:42vh}.camera-help{font-size:14px}.success-card{margin-top:26px;padding:22px 16px}}
+    @media(max-width:720px){body{background:#f4f8fc}.grid{grid-template-columns:1fr}main{display:block;padding:0}.wrap{border:0;border-radius:0;min-height:100vh;width:100%;box-shadow:none}header{padding:22px}form{gap:14px;padding:18px}.success-modal{align-items:flex-start;padding:12px}.success-card{margin-top:26px;padding:22px 16px}}
   </style>
 </head>
 <body>
@@ -350,32 +323,6 @@ function htmlPage(csrf) {
         <label>Complemento<input name="complemento"></label>
         <label class="full">Ponto de referencia<textarea name="pontoreferencia"></textarea></label>
       </div>
-      <div class="documents">
-        <strong>Documento com foto</strong>
-        <p>Envie uma foto da frente e outra do verso do documento para conferência de identidade.</p>
-        <div class="documents-grid">
-          <div class="document-field">
-            <span class="document-title">Frente do documento</span>
-            <input class="file-input" name="documento_frente" type="file" accept="image/*,application/pdf">
-            <small>Encaixe a frente do documento na moldura.</small>
-            <div class="camera-actions">
-              <button class="camera-button" type="button" data-capture-target="documento_frente" data-capture-label="frente do documento">Abrir câmera</button>
-              <button class="file-button" type="button" data-file-target="documento_frente">Escolher arquivo</button>
-            </div>
-            <div class="doc-preview" data-preview="documento_frente">Nenhuma foto selecionada.</div>
-          </div>
-          <div class="document-field">
-            <span class="document-title">Verso do documento</span>
-            <input class="file-input" name="documento_verso" type="file" accept="image/*,application/pdf">
-            <small>Encaixe o verso do documento na moldura.</small>
-            <div class="camera-actions">
-              <button class="camera-button" type="button" data-capture-target="documento_verso" data-capture-label="verso do documento">Abrir câmera</button>
-              <button class="file-button" type="button" data-file-target="documento_verso">Escolher arquivo</button>
-            </div>
-            <div class="doc-preview" data-preview="documento_verso">Nenhuma foto selecionada.</div>
-          </div>
-        </div>
-      </div>
       ${planOptions ? `<div class="plans"><strong>Plano de interesse</strong><div class="plan-list">${planOptions}</div></div>` : ""}
       <label class="consent"><input type="checkbox" name="consent" value="1" required> Autorizo a SG Fibra a usar estes dados para cadastro, atendimento e consulta de disponibilidade.</label>
       <button type="submit">Enviar cadastro</button>
@@ -383,26 +330,6 @@ function htmlPage(csrf) {
     </form>
   </section>
 </main>
-<div class="camera-modal" id="camera-modal" aria-hidden="true">
-  <div class="camera-panel">
-    <div class="camera-top">
-      <strong id="camera-title">Encaixe o documento</strong>
-      <button class="camera-close" type="button" id="camera-close">Fechar</button>
-    </div>
-    <div class="camera-stage">
-      <video id="camera-video" playsinline autoplay muted></video>
-      <div class="document-guide" aria-hidden="true"></div>
-    </div>
-    <div class="camera-help">
-      <span>Dica para ficar nítido</span>
-      Deixe o documento inteiro dentro da moldura, em local claro, sem reflexo e com as letras legíveis.
-    </div>
-    <div class="camera-bottom">
-      <button class="capture-button" type="button" id="camera-capture">Usar esta foto</button>
-      <button class="camera-fallback" type="button" id="camera-file">Escolher arquivo</button>
-    </div>
-  </div>
-</div>
 <div class="success-modal" id="success-modal" aria-hidden="true">
   <div class="success-card">
     <img src="/logo.png" alt="SG Fibra">
@@ -425,110 +352,9 @@ function htmlPage(csrf) {
     const parts = [value.slice(0, 2), value.slice(2, 4), value.slice(4, 8)].filter(Boolean);
     form.datanasc.value = parts.join("/");
   });
-  const cameraModal = document.querySelector("#camera-modal");
-  const cameraVideo = document.querySelector("#camera-video");
-  const cameraTitle = document.querySelector("#camera-title");
-  const cameraClose = document.querySelector("#camera-close");
-  const cameraCapture = document.querySelector("#camera-capture");
-  const cameraFile = document.querySelector("#camera-file");
-  let cameraStream = null;
-  let activeFileInput = null;
-
-  function updatePreview(input) {
-    const preview = document.querySelector('[data-preview="' + input.name + '"]');
-    if (!preview) return;
-    const file = input.files && input.files[0];
-    preview.textContent = file ? "Arquivo pronto: " + file.name : "Nenhuma foto selecionada.";
-  }
-
-  function setCapturedFile(input, blob) {
-    const file = new File([blob], input.name + "-" + Date.now() + ".jpg", { type: "image/jpeg" });
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    input.files = transfer.files;
-    updatePreview(input);
-  }
-
-  function stopCamera() {
-    if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
-    cameraStream = null;
-    cameraVideo.srcObject = null;
-    cameraModal.classList.remove("is-open");
-    cameraModal.setAttribute("aria-hidden", "true");
-  }
-
-  async function openCamera(input, label) {
-    activeFileInput = input;
-    cameraTitle.textContent = "Encaixe a " + label;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      input.click();
-      return;
-    }
-    try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
-      cameraVideo.srcObject = cameraStream;
-      cameraModal.classList.add("is-open");
-      cameraModal.setAttribute("aria-hidden", "false");
-    } catch {
-      input.click();
-    }
-  }
-
-  document.querySelectorAll("[data-capture-target]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const input = form.elements[button.dataset.captureTarget];
-      openCamera(input, button.dataset.captureLabel || "foto do documento");
-    });
-  });
-
-  document.querySelectorAll("[data-file-target]").forEach((button) => {
-    button.addEventListener("click", () => form.elements[button.dataset.fileTarget].click());
-  });
-
-  [form.documento_frente, form.documento_verso].forEach((input) => {
-    input.addEventListener("change", () => updatePreview(input));
-  });
-
-  cameraClose.addEventListener("click", stopCamera);
-  cameraFile.addEventListener("click", () => {
-    if (activeFileInput) activeFileInput.click();
-    stopCamera();
-  });
   successClose.addEventListener("click", () => {
     successModal.classList.remove("is-open");
     successModal.setAttribute("aria-hidden", "true");
-  });
-  cameraCapture.addEventListener("click", () => {
-    if (!activeFileInput || !cameraVideo.videoWidth) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = cameraVideo.videoWidth;
-    canvas.height = cameraVideo.videoHeight;
-    canvas.getContext("2d").drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (blob) setCapturedFile(activeFileInput, blob);
-      stopCamera();
-    }, "image/jpeg", 0.9);
-  });
-
-  const fileToPayload = (file) => new Promise((resolve, reject) => {
-    if (!file) return reject(new Error("Envie as fotos do documento."));
-    if (file.size > ${MAX_DOCUMENT_SIZE}) return reject(new Error("Cada documento deve ter ate 4 MB."));
-    const reader = new FileReader();
-    reader.onload = () => resolve({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      base64: String(reader.result).split(",")[1] || ""
-    });
-    reader.onerror = () => reject(new Error("Nao foi possivel ler o documento."));
-    reader.readAsDataURL(file);
   });
   form.cep.addEventListener("blur", async () => {
     const cep = digits(form.cep.value);
@@ -551,8 +377,6 @@ function htmlPage(csrf) {
     button.textContent = "Enviando...";
     try {
       const payload = Object.fromEntries(new FormData(form));
-      payload.documento_frente = await fileToPayload(form.documento_frente.files[0]);
-      payload.documento_verso = await fileToPayload(form.documento_verso.files[0]);
       const response = await fetch("/api/cadastro", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
@@ -597,7 +421,7 @@ async function readBody(req) {
   let raw = "";
   for await (const chunk of req) {
     raw += chunk;
-    if (raw.length > 12 * 1024 * 1024) throw new Error("Arquivo muito grande.");
+    if (raw.length > 128 * 1024) throw new Error("Cadastro muito grande.");
   }
   return raw.length ? JSON.parse(raw) : {};
 }
@@ -668,37 +492,6 @@ async function sgpPost(path, payload) {
   return data;
 }
 
-async function sgpMultipartPost(path, fields, files) {
-  const form = new FormData();
-  Object.entries(fields).forEach(([key, value]) => form.append(key, String(value)));
-  files.forEach((file) => {
-    form.append(SGP_ATTACH_FIELD, new Blob([file.buffer], { type: file.mimetype }), file.filename);
-  });
-  const response = await fetch(`${SGP_URL.replace(/\/$/, "")}${path}`, {
-    method: "POST",
-    headers: { "Accept": "application/json" },
-    body: form,
-    signal: AbortSignal.timeout(30000)
-  });
-  const text = await response.text();
-  const data = parseJsonSafe(text);
-  if (!response.ok) {
-    const detail = clean(text || JSON.stringify(data), 500);
-    const error = new Error(`SGP recusou o anexo (${response.status}). ${detail}`);
-    error.status = response.status;
-    error.data = data;
-    throw error;
-  }
-  return data;
-}
-
-async function attachDocuments(clientId, documents) {
-  if (!ATTACH_DOCUMENTS || !clientId) return false;
-  const path = SGP_ATTACH_PATH.replace("{id}", encodeURIComponent(String(clientId)));
-  await sgpMultipartPost(path, { app: SGP_APP, token: SGP_TOKEN }, documents);
-  return true;
-}
-
 function ensureOrigin(req) {
   if (!PUBLIC_BASE_URL || !req.headers.origin) return true;
   try {
@@ -718,7 +511,7 @@ async function handleCadastro(req, res) {
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
-  const required = ["nome", "cpfcnpj", "rg", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "consent"];
+  const required = ["nome", "cpfcnpj", "rg", "datanasc", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   const phone = normalizePhone(data.celular);
@@ -726,10 +519,6 @@ async function handleCadastro(req, res) {
   if (!validBirthDate(data.datanasc)) return json(res, 422, { error: "Informe a data de nascimento no formato DD/MM/AAAA." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
   if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
-  const documents = [
-    normalizeUpload(data.documento_frente, "frente"),
-    normalizeUpload(data.documento_verso, "verso")
-  ];
   const dailyLimitKeys = rateLimitKeys(req, data);
   if (!rateAllowed(dailyLimitKeys)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
 
@@ -744,6 +533,17 @@ async function handleCadastro(req, res) {
     pais: "BR",
     pontoreferencia: clean(data.pontoreferencia)
   };
+  const selectedPlanId = planIdFor(data.plan);
+  const selectedPlanLabel = planLabelFor(data.plan);
+  const observation = [
+    "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
+    `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
+    `RG: ${clean(data.rg, 30)}.`,
+    `WhatsApp: ${phone}.`,
+    `E-mail: ${clean(data.email, 150)}.`,
+    `Endereco informado: ${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ""} - ${address.bairro}, ${address.cidade}/${address.uf}, CEP ${address.cep}.`,
+    address.pontoreferencia ? `Referencia: ${address.pontoreferencia}.` : ""
+  ].filter(Boolean).join(" ");
 
   const clientPayload = {
     app: SGP_APP,
@@ -767,10 +567,9 @@ async function handleCadastro(req, res) {
     pais: address.pais,
     pontoreferencia: address.pontoreferencia,
     vencimento_id: vencimentoId(),
-    observacao: `Pre-cadastro realizado pelo formulario publico da SG Fibra. RG: ${clean(data.rg, 30)}. Documentos solicitados no formulario para conferencia do atendimento.`
+    observacao: observation
   };
 
-  const selectedPlanId = planIdFor(data.plan);
   if (selectedPlanId) {
     clientPayload.plano_id = selectedPlanId;
     clientPayload.planointernet_id = selectedPlanId;
@@ -791,15 +590,12 @@ async function handleCadastro(req, res) {
     if (clientId > 0) {
       registerSuccessfulCadastro(dailyLimitKeys);
     }
-    let documentsAttached = false;
     let contract = null;
     json(res, 200, {
       ok: true,
       message: contract
-        ? "Cadastro, contrato e documentos enviados com sucesso."
-        : documentsAttached
-          ? "Cadastro e documentos enviados com sucesso."
-          : "Pre-cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
+        ? "Cadastro e contrato enviados com sucesso."
+        : "Pre-cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocol: String(contract?.id || contract?.contrato_id || clientId || "")
     });
   } catch (error) {
