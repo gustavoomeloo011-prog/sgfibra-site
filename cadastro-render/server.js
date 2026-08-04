@@ -94,10 +94,16 @@ function planLabelFor(key) {
   return clean(plan?.name || planKey || "Plano nao informado", 100);
 }
 
-function vencimentoId() {
+function vencimentoId(day = 0) {
+  if (day > 0) return vencimentoIdByDay[day] || day;
   const explicit = Number(process.env.CONTRACT_VENCIMENTO_ID || 0);
   if (explicit > 0) return explicit;
   return vencimentoIdByDay[contractConfig.vencimentoDia] || contractConfig.vencimentoDia;
+}
+
+function vencimentoDayFor(value) {
+  const day = Number(onlyDigits(value));
+  return vencimentoIdByDay[day] ? day : 0;
 }
 
 function clean(value, max = 180) {
@@ -327,6 +333,7 @@ function htmlPage(csrf) {
         <label>Estado civil<select name="estadocivil" required><option value="">Selecione</option><option value="S">Solteiro(a)</option><option value="C">Casado(a)</option><option value="D">Divorciado(a)</option><option value="V">Viuvo(a)</option></select></label>
         <label>Celular/WhatsApp<input name="celular" type="tel" autocomplete="tel" required></label>
         <label class="full">E-mail<input name="email" type="email" autocomplete="email" required></label>
+        <label>Vencimento<select name="vencimento" required><option value="">Selecione</option><option value="5">Dia 5</option><option value="10">Dia 10</option><option value="20">Dia 20</option><option value="30">Dia 30</option></select></label>
         <label>CEP<input name="cep" inputmode="numeric" autocomplete="postal-code" required></label>
         <label>Numero<input name="numero" required></label>
         <label class="full">Rua<input name="logradouro" required></label>
@@ -579,7 +586,7 @@ async function handleCadastro(req, res) {
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
-  const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
+  const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "vencimento", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   const phone = normalizePhone(data.celular);
@@ -589,6 +596,8 @@ async function handleCadastro(req, res) {
   if (!["S", "C", "D", "V"].includes(String(data.estadocivil))) return json(res, 422, { error: "Escolha o estado civil." });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email))) return json(res, 422, { error: "Informe um e-mail valido." });
   if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
+  const selectedVencimentoDay = vencimentoDayFor(data.vencimento);
+  if (!selectedVencimentoDay) return json(res, 422, { error: "Escolha uma data de vencimento valida." });
   const dailyLimitKeys = rateLimitKeys(req, data);
   if (!rateAllowed(dailyLimitKeys)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
 
@@ -610,6 +619,7 @@ async function handleCadastro(req, res) {
     "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
     `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
     `Contrato automatico: PPPoE login ${cpf}, senha sgfibra, aquisicao comodato.`,
+    `Vencimento escolhido: dia ${selectedVencimentoDay}.`,
     `RG: ${clean(data.rg, 30)}.`,
     `WhatsApp: ${phone}.`,
     `E-mail: ${clean(data.email, 150)}.`,
@@ -640,7 +650,7 @@ async function handleCadastro(req, res) {
     pais: address.pais,
     pontoreferencia: address.pontoreferencia,
     map_ll: mapLl,
-    vencimento_id: vencimentoId(),
+    vencimento_id: vencimentoId(selectedVencimentoDay),
     login: cpf,
     senha: "sgfibra",
     central_senha: "sgfibra",
