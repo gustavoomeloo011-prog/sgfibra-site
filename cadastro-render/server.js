@@ -16,6 +16,9 @@ const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
 const sessions = new Map();
 const rates = new Map();
 const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
+const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
+const MAX_REQUEST_BYTES = Number(process.env.MAX_REQUEST_BYTES || 14 * 1024 * 1024);
+const allowedDocumentTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const internetOnlyPlans = {
   "300": { id: 1, name: "300 Mega" },
@@ -326,6 +329,7 @@ function htmlPage(csrf) {
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+    .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;display:grid;gap:12px;padding:16px}.documents p{color:#5f3a00;margin:0}.documents input[type=file]{background:#fff;border-style:dashed;padding:10px}
     .success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.success-modal.is-open{display:flex}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
     button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.error{background:#fee2e2;color:#991b1b;display:block}.success-card{background:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.35);color:#102033;display:grid;gap:14px;justify-items:center;max-width:440px;padding:26px;text-align:center;width:min(100%,440px)}.success-card img{height:auto;max-width:190px;width:58%}.success-card strong{font-size:24px;line-height:1.15}.success-card p{color:#39536f;margin:0}.protocol{display:inline-block;background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;color:#5f3a00;font-size:20px;font-weight:900;margin-top:2px;padding:10px 12px}.success-close{width:100%}
@@ -340,7 +344,7 @@ function htmlPage(csrf) {
       <h1>Cadastro para instalação</h1>
       <p>Preencha seus dados para a equipe consultar a disponibilidade, criar seu cadastro e continuar o atendimento.</p>
     </header>
-    <form id="cadastro-form">
+    <form id="cadastro-form" enctype="multipart/form-data">
       <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
       <input class="hidden" name="website" tabindex="-1" autocomplete="off">
       <div class="grid">
@@ -363,6 +367,12 @@ function htmlPage(csrf) {
         <label class="full">Ponto de referencia<textarea name="pontoreferencia"></textarea></label>
       </div>
       ${planOptions ? `<div class="plans"><strong>Plano de interesse</strong><div class="plan-list">${planOptions}</div></div>` : ""}
+      <div class="documents">
+        <strong>Documento com foto</strong>
+        <p>Envie frente e verso do documento para seguranca, comprovacao do cadastro e ativacao do contrato. Voce pode escolher um arquivo ou tirar uma foto pela camera.</p>
+        <label>Frente do documento<input name="documento_frente" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+        <label>Verso do documento<input name="documento_verso" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+      </div>
       <label class="consent"><input type="checkbox" name="consent" value="1" required> Autorizo a SG Fibra a usar estes dados para cadastro, atendimento e consulta de disponibilidade.</label>
       <button type="submit">Enviar cadastro</button>
       <div id="result" class="result"></div>
@@ -374,7 +384,7 @@ function htmlPage(csrf) {
     <img src="/logo.png" alt="SG Fibra">
     <strong id="success-title">Cadastro concluido</strong>
     <span class="protocol" id="success-protocol">ID do contrato: -</span>
-    <p>Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.</p>
+    <p id="success-help">Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.</p>
     <button class="success-close" type="button" id="success-close">Fechar</button>
   </div>
 </div>
@@ -384,6 +394,7 @@ function htmlPage(csrf) {
   const successModal = document.querySelector("#success-modal");
   const successTitle = document.querySelector("#success-title");
   const successProtocol = document.querySelector("#success-protocol");
+  const successHelp = document.querySelector("#success-help");
   const successClose = document.querySelector("#success-close");
   const digits = (value) => value.replace(/\\D+/g, "");
   form.datanasc.addEventListener("input", () => {
@@ -415,11 +426,10 @@ function htmlPage(csrf) {
     button.disabled = true;
     button.textContent = "Enviando...";
     try {
-      const payload = Object.fromEntries(new FormData(form));
+      const payload = new FormData(form);
       const response = await fetch("/api/cadastro", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(payload)
+        body: payload
       });
       const data = await response.json();
       if (!response.ok) {
@@ -430,6 +440,7 @@ function htmlPage(csrf) {
       result.innerHTML = "";
       successTitle.textContent = data.message || "Cadastro concluido";
       successProtocol.textContent = data.protocol ? (data.protocolLabel || "ID do contrato") + ": " + data.protocol : "Cadastro recebido pela SG Fibra";
+      successHelp.textContent = data.documentMessage || "Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.";
       successModal.classList.add("is-open");
       successModal.setAttribute("aria-hidden", "false");
       form.reset();
@@ -456,13 +467,66 @@ function escapeHtml(value) {
   }[char]));
 }
 
-async function readBody(req) {
-  let raw = "";
+async function readRawBody(req, maxBytes) {
+  const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > 128 * 1024) throw new Error("Cadastro muito grande.");
+    size += chunk.length;
+    if (size > maxBytes) {
+      const error = new Error("Cadastro muito grande.");
+      error.status = 413;
+      throw error;
+    }
+    chunks.push(chunk);
   }
-  return raw.length ? JSON.parse(raw) : {};
+  return Buffer.concat(chunks);
+}
+
+function parseMultipart(buffer, contentType) {
+  const boundary = contentType.match(/boundary=([^;]+)/i)?.[1]?.replace(/^"|"$/g, "");
+  if (!boundary) {
+    const error = new Error("Envio de arquivos invalido.");
+    error.status = 400;
+    throw error;
+  }
+  const data = {};
+  const files = {};
+  const raw = buffer.toString("latin1");
+  raw.split(`--${boundary}`).forEach((part) => {
+    let item = part;
+    if (!item || item === "--" || item === "--\r\n") return;
+    if (item.startsWith("\r\n")) item = item.slice(2);
+    if (item.endsWith("--")) item = item.slice(0, -2);
+    if (item.endsWith("\r\n")) item = item.slice(0, -2);
+    const headerEnd = item.indexOf("\r\n\r\n");
+    if (headerEnd < 0) return;
+    const headerText = item.slice(0, headerEnd);
+    const body = Buffer.from(item.slice(headerEnd + 4), "latin1");
+    const name = headerText.match(/name="([^"]+)"/i)?.[1];
+    if (!name) return;
+    const filename = headerText.match(/filename="([^"]*)"/i)?.[1] || "";
+    const type = headerText.match(/content-type:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase() || "application/octet-stream";
+    if (filename) {
+      files[name] = {
+        field: name,
+        filename: clean(filename.replace(/[\\/]/g, "-"), 120) || `${name}.jpg`,
+        type,
+        buffer: body
+      };
+      return;
+    }
+    data[name] = body.toString("utf8").trim();
+  });
+  return { data, files };
+}
+
+async function readRequestData(req) {
+  const contentType = String(req.headers["content-type"] || "");
+  if (contentType.toLowerCase().includes("multipart/form-data")) {
+    return parseMultipart(await readRawBody(req, MAX_REQUEST_BYTES), contentType);
+  }
+  const raw = await readRawBody(req, 128 * 1024);
+  return { data: raw.length ? JSON.parse(raw.toString("utf8")) : {}, files: {} };
 }
 
 function clientIp(req) {
@@ -531,6 +595,70 @@ async function sgpPost(path, payload) {
   return data;
 }
 
+async function sgpMultipart(path, fields, files, method = "PUT", actionLabel = "requisicao") {
+  const form = new FormData();
+  Object.entries(fields).forEach(([key, value]) => {
+    form.append(key, String(value ?? ""));
+  });
+  files.forEach((file) => {
+    form.append(file.field || "file", new Blob([file.buffer], { type: file.type }), file.filename);
+  });
+  const response = await fetch(`${SGP_URL.replace(/\/$/, "")}${path}`, {
+    method,
+    headers: { "Accept": "application/json" },
+    body: form,
+    signal: AbortSignal.timeout(30000)
+  });
+  const text = await response.text();
+  const data = parseJsonSafe(text);
+  if (!response.ok) {
+    const detail = clean(text || JSON.stringify(data), 500);
+    const error = new Error(`SGP recusou ${actionLabel} (${response.status}). ${detail}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+async function sgpForm(path, fields, method = "POST") {
+  return sgpMultipart(path, fields, [], method, "a consulta");
+}
+
+function extractClienteIds(value, ids = []) {
+  if (!value || typeof value !== "object") return ids;
+  if (Array.isArray(value)) {
+    value.forEach((item) => extractClienteIds(item, ids));
+    return ids;
+  }
+  Object.entries(value).forEach(([key, item]) => {
+    if (/^(cliente_id|clienteid|cliente)$/.test(key.toLowerCase()) && Number(item) > 0) ids.push(Number(item));
+    if (item && typeof item === "object") extractClienteIds(item, ids);
+  });
+  return ids;
+}
+
+async function clienteIdFor(cpf, contractId) {
+  const queries = [
+    { cpfcnpj: cpf, limit: 5 },
+    contractId ? { contrato: contractId, limit: 5 } : null
+  ].filter(Boolean);
+  for (const query of queries) {
+    try {
+      const data = await sgpForm("/api/ura/clientes/", {
+        app: SGP_APP,
+        token: SGP_TOKEN,
+        ...query
+      });
+      const ids = extractClienteIds(data).filter((id) => id > 0);
+      if (ids.length) return Math.max(...ids);
+    } catch (error) {
+      console.error("[SG cliente consulta]", errorSummary(error));
+    }
+  }
+  return 0;
+}
+
 async function latestContractIdFor(cpf) {
   try {
     const data = await sgpPost("/api/central/contratos", {
@@ -550,6 +678,48 @@ async function latestContractIdFor(cpf) {
 
 function confirmationEmailReady() {
   return emailConfig.enabled && emailConfig.host && emailConfig.port && emailConfig.user && emailConfig.pass && emailConfig.from;
+}
+
+function validateDocumentFile(file, label) {
+  if (!file || !file.buffer?.length) return `${label}: envie a foto do documento.`;
+  if (file.buffer.length > MAX_UPLOAD_BYTES) return `${label}: arquivo maior que ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`;
+  if (!allowedDocumentTypes.has(file.type)) return `${label}: envie JPG, PNG ou WEBP.`;
+  return "";
+}
+
+function documentUploads(files) {
+  const front = files.documento_frente;
+  const back = files.documento_verso;
+  const errors = [
+    validateDocumentFile(front, "Frente do documento"),
+    validateDocumentFile(back, "Verso do documento")
+  ].filter(Boolean);
+  return {
+    errors,
+    uploads: [
+      front ? { ...front, description: "Documento frente - cadastro online SG Fibra" } : null,
+      back ? { ...back, description: "Documento verso - cadastro online SG Fibra" } : null
+    ].filter(Boolean)
+  };
+}
+
+async function attachClientDocuments(clienteId, uploads) {
+  if (!clienteId || !uploads.length) return { sent: 0, total: uploads.length };
+  let sent = 0;
+  for (const upload of uploads) {
+    await sgpMultipart(`/api/suporte/cliente/${clienteId}/documento/add/`, {
+      app: SGP_APP,
+      token: SGP_TOKEN,
+      descricao: upload.description
+    }, [{
+      field: "file",
+      filename: upload.filename,
+      type: upload.type,
+      buffer: upload.buffer
+    }], "PUT", "o anexo");
+    sent += 1;
+  }
+  return { sent, total: uploads.length };
 }
 
 function installationServiceDescription({ name, cpf, phone, email, rg, planLabel, vencimentoDay, address }) {
@@ -692,7 +862,13 @@ async function handleCadastro(req, res) {
   const session = getSession(req);
   if (!session) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
 
-  const data = await readBody(req);
+  let parsedRequest;
+  try {
+    parsedRequest = await readRequestData(req);
+  } catch (error) {
+    return json(res, error.status || 400, { error: errorSummary(error) || "Envio invalido." });
+  }
+  const { data, files } = parsedRequest;
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
@@ -708,6 +884,8 @@ async function handleCadastro(req, res) {
   if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
   const selectedVencimentoDay = vencimentoDayFor(data.vencimento);
   if (!selectedVencimentoDay) return json(res, 422, { error: "Escolha uma data de vencimento valida." });
+  const documents = documentUploads(files);
+  if (documents.errors.length) return json(res, 422, { error: documents.errors.join(" ") });
   const dailyLimitKeys = rateLimitKeys(req, data);
   if (!rateAllowed(dailyLimitKeys)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
 
@@ -794,17 +972,28 @@ async function handleCadastro(req, res) {
   try {
     const client = await sgpPost("/api/precadastro/F", clientPayload);
     const clientId = Number(client.id || client.precadastro_id || client.cliente_id || client?.precadastro?.id || client?.cliente?.id || 0);
-    if (clientId > 0) {
-      registerSuccessfulCadastro(dailyLimitKeys);
-    }
+    const directClienteId = Number(client.cliente_id || client?.cliente?.id || 0);
+    registerSuccessfulCadastro(dailyLimitKeys);
     const contractId = await latestContractIdFor(cpf);
+    const clienteId = await clienteIdFor(cpf, contractId) || directClienteId;
+    let documentMessage = "Documentos recebidos e anexados ao cadastro.";
+    try {
+      const attached = await attachClientDocuments(clienteId, documents.uploads);
+      if (attached.sent !== attached.total) {
+        documentMessage = "Cadastro concluido. Envie os documentos tambem pelo WhatsApp para conferencia do atendimento.";
+      }
+    } catch (error) {
+      console.error("[SG documento anexo]", errorSummary(error));
+      documentMessage = "Cadastro concluido. Nao foi possivel anexar os documentos automaticamente; envie as fotos pelo WhatsApp para conferencia.";
+    }
     const responsePayload = {
       ok: true,
       message: contractId
         ? "Cadastro e contrato enviados com sucesso."
         : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocolLabel: contractId ? "ID do contrato" : "ID do pre-cadastro",
-      protocol: String(contractId || clientId || "")
+      protocol: String(contractId || clientId || ""),
+      documentMessage
     };
     json(res, 200, responsePayload);
     sendConfirmationEmail({

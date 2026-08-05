@@ -24,7 +24,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
 - A senha do e-mail/SMTP tambem deve ficar somente no Render.
 - O token nao aparece no HTML, CSS ou JavaScript do cliente.
 - O formulario usa CSRF, cookie seguro, honeypot, limite diario simples, limite de tamanho para documentos e cabecalhos de seguranca.
-- As fotos do documento passam pelo servidor antes de seguir para o SGP; `app` e `token` continuam ocultos.
+- As fotos do documento passam pelo servidor antes de seguir para a aba Documentos do cliente no SGP; `app` e `token` continuam ocultos.
 - A pagina vem com `noindex`, porque e um link operacional para clientes, nao uma pagina para aparecer no Google.
 
 Depois de gerar um novo token no SGP, use apenas no painel do Render.

@@ -17,6 +17,10 @@ services:
         generateValue: true
       - key: DAILY_LIMIT
         value: 2
+      - key: MAX_UPLOAD_BYTES
+        value: 5242880
+      - key: MAX_REQUEST_BYTES
+        value: 14680064
       - key: PRECADASTRO_ATIVAR
         value: true
       - key: PUBLIC_BASE_URL
