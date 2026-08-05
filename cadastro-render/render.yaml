@@ -41,6 +41,8 @@ services:
         value: ""
       - key: PLANS_JSON
         value: '{"300":{"id":1,"name":"300 Mega"},"500":{"id":3,"name":"500 Mega"},"700":{"id":4,"name":"700 Mega"}}'
+      - key: INSTALLATION_SERVICE_DESCRIPTION
+        value: ""
       - key: CONFIRMATION_EMAIL_ENABLED
         value: false
       - key: SMTP_HOST

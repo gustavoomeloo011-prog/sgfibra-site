@@ -46,6 +46,8 @@ const emailConfig = {
   replyTo: clean(process.env.SMTP_REPLY_TO || process.env.SMTP_FROM || process.env.SMTP_USER || "", 220)
 };
 
+const installationDescriptionTemplate = clean(process.env.INSTALLATION_SERVICE_DESCRIPTION || "", 1500);
+
 const knownPlanIds = {
   "300": 1,
   "300-mega": 1,
@@ -135,6 +137,10 @@ function parseJsonSafe(text) {
 
 function errorSummary(error) {
   return clean(error?.message || error, 500);
+}
+
+function fillTemplate(template, values) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) => values[key] || "");
 }
 
 function isDuplicateCpfError(error) {
@@ -546,6 +552,34 @@ function confirmationEmailReady() {
   return emailConfig.enabled && emailConfig.host && emailConfig.port && emailConfig.user && emailConfig.pass && emailConfig.from;
 }
 
+function installationServiceDescription({ name, cpf, phone, email, rg, planLabel, vencimentoDay, address }) {
+  const values = {
+    nome: clean(name, 120),
+    cpf,
+    telefone: phone,
+    email: clean(email, 150),
+    rg: clean(rg, 30),
+    plano: clean(planLabel, 100),
+    vencimento: String(vencimentoDay),
+    endereco: `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ""} - ${address.bairro}, ${address.cidade}/${address.uf}, CEP ${address.cep}`,
+    referencia: clean(address.pontoreferencia, 180) || "Nao informado"
+  };
+  if (installationDescriptionTemplate) return fillTemplate(installationDescriptionTemplate, values);
+  return [
+    "INSTALACAO - Cadastro realizado pelo formulario publico SG Fibra.",
+    `Cliente: ${values.nome}`,
+    `CPF: ${values.cpf}`,
+    `RG: ${values.rg}`,
+    `Plano contratado: ${values.plano}`,
+    `Vencimento escolhido: dia ${values.vencimento}`,
+    `PPPoE: login ${values.cpf} / senha sgfibra`,
+    `Endereco: ${values.endereco}`,
+    `Referencia: ${values.referencia}`,
+    `Contato: WhatsApp ${values.telefone} / E-mail ${values.email}`,
+    "Orientacao: confirmar disponibilidade, passagem de fibra e melhor ponto de instalacao antes de finalizar a OS."
+  ].join("\n");
+}
+
 let mailTransporter = null;
 
 function getMailTransporter() {
@@ -695,6 +729,16 @@ async function handleCadastro(req, res) {
   const selectedPlanId = planIdFor(data.plan);
   const selectedPlanLabel = planLabelFor(data.plan);
   const mapLl = await geocodeAddress(address);
+  const serviceDescription = installationServiceDescription({
+    name: data.nome,
+    cpf,
+    phone,
+    email: data.email,
+    rg: data.rg,
+    planLabel: selectedPlanLabel,
+    vencimentoDay: selectedVencimentoDay,
+    address
+  });
   const observation = [
     "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
     `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
@@ -736,6 +780,7 @@ async function handleCadastro(req, res) {
     central_senha: "sgfibra",
     modoaquisicao: 1,
     precadastro_ativar: PRECADASTRO_ATIVAR ? 1 : 0,
+    servicodesc: serviceDescription,
     observacao: observation
   };
 
