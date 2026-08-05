@@ -397,6 +397,26 @@ function htmlPage(csrf) {
   const successHelp = document.querySelector("#success-help");
   const successClose = document.querySelector("#success-close");
   const digits = (value) => value.replace(/\\D+/g, "");
+  const formatCpf = (value) => {
+    const cleanValue = digits(value).slice(0, 11);
+    return cleanValue
+      .replace(/(\\d{3})(\\d)/, "$1.$2")
+      .replace(/(\\d{3})(\\d)/, "$1.$2")
+      .replace(/(\\d{3})(\\d{1,2})$/, "$1-$2");
+  };
+  const formatRg = (value) => {
+    const cleanValue = String(value).replace(/[^0-9xX]/g, "").toUpperCase().slice(0, 9);
+    return cleanValue
+      .replace(/(\\d{2})(\\d)/, "$1.$2")
+      .replace(/(\\d{3})(\\d)/, "$1.$2")
+      .replace(/(\\d{3})([0-9X])$/, "$1-$2");
+  };
+  form.cpfcnpj.addEventListener("input", () => {
+    form.cpfcnpj.value = formatCpf(form.cpfcnpj.value);
+  });
+  form.rg.addEventListener("input", () => {
+    form.rg.value = formatRg(form.rg.value);
+  });
   form.datanasc.addEventListener("input", () => {
     const value = digits(form.datanasc.value).slice(0, 8);
     const parts = [value.slice(0, 2), value.slice(2, 4), value.slice(4, 8)].filter(Boolean);
