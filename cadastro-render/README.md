@@ -13,6 +13,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - `PLANS_JSON`, mantendo apenas planos de internet no formulario publico
    - demais IDs de contrato, se for criar contrato automaticamente
    - `INSTALLATION_SERVICE_DESCRIPTION`, caso queira personalizar o texto enviado como detalhes do servico solicitado na instalacao
+   - `ADMIN_USER` e `ADMIN_PASSWORD`, para liberar o painel operacional em `/admin`
    - `CONFIRMATION_EMAIL_ENABLED=true` e os dados `SMTP_*`, caso queira enviar e-mail automatico de confirmacao ao cliente
 3. No Render, cadastre o dominio:
    - `cadastro.sgfibra.com.br`
@@ -25,6 +26,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
 - O token nao aparece no HTML, CSS ou JavaScript do cliente.
 - O formulario usa CSRF, cookie seguro, honeypot, limite diario simples, limite de tamanho para documentos e cabecalhos de seguranca.
 - As fotos do documento passam pelo servidor antes de seguir para a aba Documentos do cliente no SGP; `app` e `token` continuam ocultos.
+- O painel operacional fica protegido por senha e mostra apenas logs recentes em memoria.
 - A pagina vem com `noindex`, porque e um link operacional para clientes, nao uma pagina para aparecer no Google.
 
 Depois de gerar um novo token no SGP, use apenas no painel do Render.

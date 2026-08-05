@@ -13,8 +13,13 @@ const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === "true";
 const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
+const ADMIN_USER = clean(process.env.ADMIN_USER || "admin", 80);
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
 const sessions = new Map();
 const rates = new Map();
+const adminEvents = [];
+const queueJobs = [];
+let queueRunning = false;
 const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
 const MAX_REQUEST_BYTES = Number(process.env.MAX_REQUEST_BYTES || 14 * 1024 * 1024);
@@ -241,6 +246,18 @@ function formatBirthDate(value) {
   return `${day}/${month}/${date.getUTCFullYear()}`;
 }
 
+function formatDateTime(value) {
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "medium"
+    }).format(new Date(value));
+  } catch {
+    return String(value || "");
+  }
+}
+
 function formatBirthDateIso(value) {
   const date = parseBirthDate(value);
   if (!date) return "";
@@ -312,6 +329,135 @@ function send(res, status, body, headers = {}) {
 
 function json(res, status, payload) {
   send(res, status, JSON.stringify(payload), { "Content-Type": "application/json; charset=utf-8" });
+}
+
+function maskCpf(value) {
+  const cpf = onlyDigits(value);
+  if (cpf.length !== 11) return "***";
+  return `${cpf.slice(0, 3)}.***.***-${cpf.slice(9)}`;
+}
+
+function addEvent(type, status, details = {}) {
+  const event = {
+    id: crypto.randomBytes(6).toString("hex").toUpperCase(),
+    at: new Date().toISOString(),
+    type,
+    status,
+    details
+  };
+  adminEvents.unshift(event);
+  adminEvents.splice(200);
+  console.log(`[SG ${type} ${status}]`, JSON.stringify(details));
+  return event;
+}
+
+function publicJob(job) {
+  return {
+    id: job.id,
+    at: job.at,
+    updatedAt: job.updatedAt,
+    type: job.type,
+    status: job.status,
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    summary: job.summary,
+    error: job.error
+  };
+}
+
+function enqueueJob(type, summary, run, maxAttempts = 3) {
+  const job = {
+    id: crypto.randomBytes(6).toString("hex").toUpperCase(),
+    at: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    type,
+    status: "pendente",
+    attempts: 0,
+    maxAttempts,
+    summary,
+    error: "",
+    run
+  };
+  queueJobs.unshift(job);
+  queueJobs.splice(100);
+  addEvent("fila", "pendente", { job: job.id, type, summary });
+  processQueue();
+  return job;
+}
+
+async function processQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  try {
+    while (true) {
+      const job = [...queueJobs].reverse().find((item) => item.status === "pendente");
+      if (!job) break;
+      job.status = "processando";
+      job.attempts += 1;
+      job.updatedAt = new Date().toISOString();
+      job.error = "";
+      addEvent("fila", "processando", { job: job.id, type: job.type, attempt: job.attempts });
+      try {
+        await job.run();
+        job.status = "concluido";
+        job.updatedAt = new Date().toISOString();
+        addEvent("fila", "concluido", { job: job.id, type: job.type });
+      } catch (error) {
+        job.error = errorSummary(error);
+        job.updatedAt = new Date().toISOString();
+        job.status = job.attempts < job.maxAttempts ? "pendente" : "falhou";
+        addEvent("fila", job.status, { job: job.id, type: job.type, error: job.error });
+      }
+    }
+  } finally {
+    queueRunning = false;
+  }
+}
+
+function adminAuthorized(req) {
+  if (!ADMIN_PASSWORD) return false;
+  const header = String(req.headers.authorization || "");
+  if (!header.startsWith("Basic ")) return false;
+  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+  const split = decoded.indexOf(":");
+  const user = decoded.slice(0, split);
+  const pass = decoded.slice(split + 1);
+  const passBuffer = Buffer.from(pass);
+  const expectedBuffer = Buffer.from(ADMIN_PASSWORD);
+  return user === ADMIN_USER && passBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(passBuffer, expectedBuffer);
+}
+
+function requireAdmin(req, res) {
+  if (adminAuthorized(req)) return true;
+  res.writeHead(401, {
+    "WWW-Authenticate": 'Basic realm="SG Fibra Admin"',
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end("Acesso restrito.");
+  return false;
+}
+
+function adminPage() {
+  const rows = queueJobs.map((job) => {
+    const retry = job.status === "falhou" ? `<form method="post" action="/admin/retry?id=${escapeHtml(job.id)}"><button>Tentar de novo</button></form>` : "";
+    return `<tr><td>${escapeHtml(job.status)}</td><td>${escapeHtml(job.type)}</td><td>${escapeHtml(job.summary)}</td><td>${job.attempts}/${job.maxAttempts}</td><td>${escapeHtml(job.error || "-")}</td><td>${retry}</td></tr>`;
+  }).join("") || `<tr><td colspan="6">Nenhuma tarefa registrada.</td></tr>`;
+  const logs = adminEvents.map((event) => (
+    `<tr><td>${escapeHtml(formatDateTime(event.at))}</td><td>${escapeHtml(event.type)}</td><td>${escapeHtml(event.status)}</td><td><pre>${escapeHtml(JSON.stringify(event.details, null, 2))}</pre></td></tr>`
+  )).join("") || `<tr><td colspan="4">Nenhum log registrado desde o ultimo reinicio.</td></tr>`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Painel SG Fibra</title><style>body{font-family:Arial,sans-serif;background:#f4f8fc;color:#102033;margin:0;padding:24px}main{max-width:1180px;margin:auto}h1,h2{margin:0 0 14px}.top{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-bottom:20px}.card{background:#fff;border:1px solid #d9e4f2;border-radius:8px;margin:0 0 18px;padding:18px;box-shadow:0 10px 28px rgba(7,27,54,.08)}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #d9e4f2;padding:10px;text-align:left;vertical-align:top}th{background:#f8fbff}pre{white-space:pre-wrap;margin:0;max-width:520px}button,a.btn{background:#006cff;border:0;border-radius:6px;color:#fff;display:inline-block;font-weight:700;padding:9px 12px;text-decoration:none}form{margin:0}.muted{color:#607086;font-size:13px}@media(max-width:760px){body{padding:12px}table{display:block;overflow:auto;white-space:nowrap}}</style></head><body><main><div class="top"><div><h1>Painel operacional</h1><div class="muted">Dados em memoria. Reinicio do Render limpa fila e logs.</div></div><a class="btn" href="/admin">Atualizar</a></div><section class="card"><h2>Fila de processamento</h2><table><thead><tr><th>Status</th><th>Tipo</th><th>Resumo</th><th>Tentativas</th><th>Erro</th><th>Ação</th></tr></thead><tbody>${rows}</tbody></table></section><section class="card"><h2>Logs recentes</h2><table><thead><tr><th>Data</th><th>Tipo</th><th>Status</th><th>Detalhes</th></tr></thead><tbody>${logs}</tbody></table></section></main></body></html>`;
+}
+
+function retryJob(id) {
+  const job = queueJobs.find((item) => item.id === id && item.status === "falhou");
+  if (!job) return false;
+  job.status = "pendente";
+  job.error = "";
+  job.updatedAt = new Date().toISOString();
+  addEvent("fila", "reprocessar", { job: job.id, type: job.type });
+  processQueue();
+  return true;
 }
 
 function htmlPage(csrf) {
@@ -980,7 +1126,10 @@ async function handleCadastro(req, res) {
   const documents = documentUploads(files);
   if (documents.errors.length) return json(res, 422, { error: documents.errors.join(" ") });
   const dailyLimitKeys = rateLimitKeys(req, data);
-  if (!rateAllowed(dailyLimitKeys)) return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
+  if (!rateAllowed(dailyLimitKeys)) {
+    addEvent("seguranca", "limite", { cpf: maskCpf(cpf), ip: clientIp(req), telefone: phone });
+    return json(res, 429, { error: "Limite diario atingido. Para evitar cadastros repetidos, permitimos no maximo 2 cadastros concluidos por dia." });
+  }
 
   const address = {
     logradouro: clean(data.logradouro),
@@ -1068,23 +1217,37 @@ async function handleCadastro(req, res) {
     const directClienteId = Number(client.cliente_id || client?.cliente?.id || 0);
     registerSuccessfulCadastro(dailyLimitKeys);
     const contractId = await latestContractIdFor(cpf);
+    addEvent("cadastro", "criado", {
+      cpf: maskCpf(cpf),
+      contrato: contractId || "",
+      preCadastro: clientId || "",
+      plano: selectedPlanLabel,
+      vencimento: selectedVencimentoDay
+    });
     if (contractId) {
-      try {
-        await updateInstallationOs(contractId, serviceDescription);
-      } catch (error) {
-        console.error("[SG OS atualizar]", errorSummary(error));
-      }
+      enqueueJob("os", `Contrato ${contractId} - atualizar texto da OS`, async () => {
+        const osId = await updateInstallationOs(contractId, serviceDescription);
+        if (!osId) throw new Error("OS nao localizada para o contrato.");
+      });
     }
-    const clienteId = await clienteIdFor(cpf, contractId) || directClienteId;
-    let documentMessage = "Documentos recebidos e anexados ao cadastro.";
-    try {
+    enqueueJob("documentos", `Contrato ${contractId || "-"} - anexar documentos de ${maskCpf(cpf)}`, async () => {
+      const clienteId = await clienteIdFor(cpf, contractId) || directClienteId;
+      if (!clienteId) throw new Error("Cliente nao localizado para anexar documentos.");
       const attached = await attachClientDocuments(clienteId, documents.uploads);
       if (attached.sent !== attached.total) {
-        documentMessage = "Cadastro concluido. Envie os documentos tambem pelo WhatsApp para conferencia do atendimento.";
+        throw new Error(`Anexos incompletos: ${attached.sent}/${attached.total}.`);
       }
-    } catch (error) {
-      console.error("[SG documento anexo]", errorSummary(error));
-      documentMessage = "Cadastro concluido. Nao foi possivel anexar os documentos automaticamente; envie as fotos pelo WhatsApp para conferencia.";
+    });
+    if (confirmationEmailReady()) {
+      enqueueJob("email", `Contrato ${contractId || "-"} - confirmacao para ${clean(data.email, 150)}`, async () => {
+        await sendConfirmationEmail({
+          to: clean(data.email, 150),
+          name: clean(data.nome, 120),
+          contractId: String(contractId || clientId || ""),
+          planLabel: selectedPlanLabel,
+          vencimentoDay: selectedVencimentoDay
+        });
+      }, 2);
     }
     const responsePayload = {
       ok: true,
@@ -1093,19 +1256,11 @@ async function handleCadastro(req, res) {
         : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
       protocolLabel: contractId ? "ID do contrato" : "ID do pre-cadastro",
       protocol: String(contractId || clientId || ""),
-      documentMessage
+      documentMessage: "Documentos recebidos e enviados para processamento seguro. A equipe acompanha pelo painel interno."
     };
     json(res, 200, responsePayload);
-    sendConfirmationEmail({
-      to: clean(data.email, 150),
-      name: clean(data.nome, 120),
-      contractId: responsePayload.protocol,
-      planLabel: selectedPlanLabel,
-      vencimentoDay: selectedVencimentoDay
-    }).catch((error) => {
-      console.error("[SG email confirmacao]", errorSummary(error));
-    });
   } catch (error) {
+    addEvent("cadastro", "erro", { cpf: maskCpf(cpf), error: errorSummary(error) });
     if (isDuplicateCpfError(error)) {
       return json(res, 409, {
         error: "Este CPF ja possui cadastro na SG Fibra. Fale com um atendente para localizar ou atualizar o cadastro."
@@ -1128,6 +1283,17 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
+    if (url.pathname === "/admin") {
+      if (!requireAdmin(req, res)) return;
+      return send(res, 200, adminPage(), { "Content-Type": "text/html; charset=utf-8" });
+    }
+    if (req.method === "POST" && url.pathname === "/admin/retry") {
+      if (!requireAdmin(req, res)) return;
+      retryJob(clean(url.searchParams.get("id") || "", 40));
+      res.writeHead(303, { Location: "/admin", "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
     if (req.method === "GET" && (url.pathname === "/logo.png" || url.pathname === "/favicon.ico")) {
       const logo = fs.readFileSync(logoPath);
       return send(res, 200, logo, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });

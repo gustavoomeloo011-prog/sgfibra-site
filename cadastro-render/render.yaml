@@ -25,6 +25,10 @@ services:
         value: true
       - key: PUBLIC_BASE_URL
         value: https://cadastro.sgfibra.com.br
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
       - key: CONTRACT_POP_ID
         value: 1
       - key: CONTRACT_NAS_ID
