@@ -154,6 +154,12 @@ function onlyDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
 
+function formatCpfDisplay(value) {
+  const cpf = onlyDigits(value).slice(0, 11);
+  if (cpf.length !== 11) return cpf;
+  return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
+}
+
 function sgpFieldError(error) {
   const errors = error?.data?.errors;
   if (!errors || typeof errors !== "object") return "";
@@ -961,6 +967,7 @@ async function handleCadastro(req, res) {
   const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "vencimento", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
+  const formattedCpf = formatCpfDisplay(cpf);
   const phone = normalizePhone(data.celular);
   if (!validCpf(cpf)) return json(res, 422, { error: "Informe um CPF valido." });
   if (!validBirthDate(data.datanasc)) return json(res, 422, { error: "Informe a data de nascimento no formato DD/MM/AAAA." });
@@ -991,7 +998,7 @@ async function handleCadastro(req, res) {
   const mapLl = await geocodeAddress(address);
   const serviceDescription = installationServiceDescription({
     name: data.nome,
-    cpf,
+    cpf: formattedCpf,
     phone,
     email: data.email,
     rg: data.rg,
@@ -1002,7 +1009,7 @@ async function handleCadastro(req, res) {
   const observation = [
     "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
     `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
-    `Contrato automatico: PPPoE login ${cpf}, senha sgfibra, aquisicao comodato.`,
+    `Contrato automatico: PPPoE login ${cpf}, senha sgfibra, aquisicao comodato. CPF informado: ${formattedCpf}.`,
     `Vencimento escolhido: dia ${selectedVencimentoDay}.`,
     `RG: ${clean(data.rg, 30)}.`,
     `WhatsApp: ${phone}.`,
@@ -1015,7 +1022,7 @@ async function handleCadastro(req, res) {
     app: SGP_APP,
     token: SGP_TOKEN,
     nome: clean(data.nome, 120),
-    cpfcnpj: cpf,
+    cpfcnpj: formattedCpf,
     rg: clean(data.rg, 30),
     rg_emissor: "SSP",
     identidade: clean(data.rg, 30),
