@@ -411,11 +411,20 @@ function htmlPage(csrf) {
       .replace(/(\\d{3})(\\d)/, "$1.$2")
       .replace(/(\\d{3})([0-9X])$/, "$1-$2");
   };
+  const formatPhone = (value) => {
+    const cleanValue = digits(value).slice(0, 11);
+    if (cleanValue.length <= 2) return cleanValue ? "(" + cleanValue : "";
+    if (cleanValue.length <= 7) return "(" + cleanValue.slice(0, 2) + ") " + cleanValue.slice(2);
+    return "(" + cleanValue.slice(0, 2) + ") " + cleanValue.slice(2, 7) + "-" + cleanValue.slice(7);
+  };
   form.cpfcnpj.addEventListener("input", () => {
     form.cpfcnpj.value = formatCpf(form.cpfcnpj.value);
   });
   form.rg.addEventListener("input", () => {
     form.rg.value = formatRg(form.rg.value);
+  });
+  form.celular.addEventListener("input", () => {
+    form.celular.value = formatPhone(form.celular.value);
   });
   form.datanasc.addEventListener("input", () => {
     const value = digits(form.datanasc.value).slice(0, 8);
