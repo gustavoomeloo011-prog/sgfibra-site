@@ -288,14 +288,24 @@ function readSignedCookie(req, name) {
   return value;
 }
 
+function cookieSecurity(req) {
+  const host = String(req.headers.host || "");
+  return !/^localhost(:|$)|^127\.0\.0\.1(:|$)/.test(host);
+}
+
+function setCookie(res, values) {
+  const current = res.getHeader("Set-Cookie");
+  const list = Array.isArray(current) ? current : current ? [current] : [];
+  res.setHeader("Set-Cookie", [...list, ...values]);
+}
+
 function makeSession(req, res) {
   const sid = crypto.randomBytes(24).toString("hex");
   const csrf = crypto.randomBytes(24).toString("hex");
   const deviceId = readSignedCookie(req, "sg_device") || crypto.randomBytes(24).toString("hex");
-  const host = String(req.headers.host || "");
-  const secure = !/^localhost(:|$)|^127\.0\.0\.1(:|$)/.test(host);
+  const secure = cookieSecurity(req);
   sessions.set(sid, { csrf, createdAt: Date.now() });
-  res.setHeader("Set-Cookie", [
+  setCookie(res, [
     `sg_cadastro=${signedCookieValue(sid)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=7200`,
     `sg_device=${signedCookieValue(deviceId)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=2592000`
   ]);
@@ -414,28 +424,44 @@ async function processQueue() {
   }
 }
 
-function adminAuthorized(req) {
+function adminCredentialsValid(user, pass) {
   if (!ADMIN_PASSWORD) return false;
-  const header = String(req.headers.authorization || "");
-  if (!header.startsWith("Basic ")) return false;
-  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
-  const split = decoded.indexOf(":");
-  const user = decoded.slice(0, split);
-  const pass = decoded.slice(split + 1);
   const passBuffer = Buffer.from(pass);
   const expectedBuffer = Buffer.from(ADMIN_PASSWORD);
   return user === ADMIN_USER && passBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(passBuffer, expectedBuffer);
 }
 
+function adminAuthorized(req) {
+  const sid = readSignedCookie(req, "sg_admin");
+  if (!sid) return false;
+  const session = sessions.get(`admin:${sid}`);
+  return Boolean(session && Date.now() - session.createdAt <= 21600000);
+}
+
 function requireAdmin(req, res) {
   if (adminAuthorized(req)) return true;
-  res.writeHead(401, {
-    "WWW-Authenticate": 'Basic realm="SG Fibra Admin"',
-    "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "no-store"
-  });
-  res.end("Acesso restrito.");
+  send(res, 200, adminLoginPage(), { "Content-Type": "text/html; charset=utf-8" });
   return false;
+}
+
+function makeAdminSession(req, res) {
+  const sid = crypto.randomBytes(24).toString("hex");
+  sessions.set(`admin:${sid}`, { createdAt: Date.now() });
+  setCookie(res, [
+    `sg_admin=${signedCookieValue(sid)}; Path=/admin; HttpOnly; ${cookieSecurity(req) ? "Secure; " : ""}SameSite=Lax; Max-Age=21600`
+  ]);
+}
+
+function clearAdminSession(req, res) {
+  const sid = readSignedCookie(req, "sg_admin");
+  if (sid) sessions.delete(`admin:${sid}`);
+  setCookie(res, [
+    `sg_admin=; Path=/admin; HttpOnly; ${cookieSecurity(req) ? "Secure; " : ""}SameSite=Lax; Max-Age=0`
+  ]);
+}
+
+function adminLoginPage(error = "") {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Login - Painel SG Fibra</title><style>body{font-family:Arial,sans-serif;background:linear-gradient(135deg,#06172f,#0b3b78);display:grid;min-height:100vh;margin:0;place-items:center;color:#102033}.card{background:#fff;border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:grid;gap:16px;max-width:390px;padding:28px;width:calc(100% - 28px)}img{height:auto;margin:auto;max-width:160px}h1{font-size:24px;margin:0;text-align:center}label{display:grid;gap:7px;font-weight:800}input{border:1px solid #d9e4f2;border-radius:8px;font:inherit;font-size:16px;min-height:48px;padding:12px}button{background:#006cff;border:0;border-radius:8px;color:#fff;cursor:pointer;font:inherit;font-weight:900;min-height:50px}.error{background:#fee2e2;border-radius:8px;color:#991b1b;font-weight:800;padding:12px;text-align:center}.muted{color:#607086;font-size:13px;text-align:center}</style></head><body><form class="card" method="post" action="/admin/login"><img src="/logo.png" alt="SG Fibra"><h1>Painel operacional</h1>${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}<label>Login<input name="user" autocomplete="username" required autofocus></label><label>Senha<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">Entrar</button><div class="muted">Acesso restrito SG Fibra</div></form></body></html>`;
 }
 
 function adminPage() {
@@ -708,6 +734,11 @@ async function readRequestData(req) {
   }
   const raw = await readRawBody(req, 128 * 1024);
   return { data: raw.length ? JSON.parse(raw.toString("utf8")) : {}, files: {} };
+}
+
+async function readUrlEncoded(req) {
+  const raw = await readRawBody(req, 32 * 1024);
+  return Object.fromEntries(new URLSearchParams(raw.toString("utf8")));
 }
 
 function clientIp(req) {
@@ -1283,6 +1314,23 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
+    if (req.method === "POST" && url.pathname === "/admin/login") {
+      const data = await readUrlEncoded(req);
+      if (adminCredentialsValid(String(data.user || ""), String(data.password || ""))) {
+        makeAdminSession(req, res);
+        res.writeHead(303, { Location: "/admin", "Cache-Control": "no-store" });
+        res.end();
+        return;
+      }
+      addEvent("admin", "login-negado", { user: clean(data.user || "", 80), ip: clientIp(req) });
+      return send(res, 200, adminLoginPage("Login ou senha invalidos."), { "Content-Type": "text/html; charset=utf-8" });
+    }
+    if (req.method === "POST" && url.pathname === "/admin/logout") {
+      clearAdminSession(req, res);
+      res.writeHead(303, { Location: "/admin", "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
     if (url.pathname === "/admin") {
       if (!requireAdmin(req, res)) return;
       return send(res, 200, adminPage(), { "Content-Type": "text/html; charset=utf-8" });
