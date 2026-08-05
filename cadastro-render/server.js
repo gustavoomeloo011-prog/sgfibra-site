@@ -625,17 +625,35 @@ async function sgpForm(path, fields, method = "POST") {
   return sgpMultipart(path, fields, [], method, "a consulta");
 }
 
-function extractClienteIds(value, ids = []) {
-  if (!value || typeof value !== "object") return ids;
+function normalizeCpfText(value) {
+  return onlyDigits(value).slice(-11);
+}
+
+function collectObjects(value, items = []) {
+  if (!value || typeof value !== "object") return items;
   if (Array.isArray(value)) {
-    value.forEach((item) => extractClienteIds(item, ids));
-    return ids;
+    value.forEach((item) => collectObjects(item, items));
+    return items;
   }
-  Object.entries(value).forEach(([key, item]) => {
-    if (/^(cliente_id|clienteid|cliente)$/.test(key.toLowerCase()) && Number(item) > 0) ids.push(Number(item));
-    if (item && typeof item === "object") extractClienteIds(item, ids);
+  items.push(value);
+  Object.values(value).forEach((item) => {
+    if (item && typeof item === "object") collectObjects(item, items);
   });
-  return ids;
+  return items;
+}
+
+function clienteIdsFromUra(data, cpf) {
+  const targetCpf = normalizeCpfText(cpf);
+  const objects = collectObjects(data);
+  const exact = objects
+    .filter((item) => !targetCpf || normalizeCpfText(item.cpfcnpj || item.cpf || item.documento || "") === targetCpf)
+    .map((item) => Number(item.cliente_id || item.clienteid || item.id || 0))
+    .filter((id) => id > 0);
+  if (exact.length) return exact;
+  return objects
+    .filter((item) => item.razaosocial || item.nome || item.nomefantasia || item.contratos || item.contrato)
+    .map((item) => Number(item.cliente_id || item.clienteid || item.id || 0))
+    .filter((id) => id > 0);
 }
 
 async function clienteIdFor(cpf, contractId) {
@@ -650,13 +668,52 @@ async function clienteIdFor(cpf, contractId) {
         token: SGP_TOKEN,
         ...query
       });
-      const ids = extractClienteIds(data).filter((id) => id > 0);
+      const ids = clienteIdsFromUra(data, cpf);
       if (ids.length) return Math.max(...ids);
     } catch (error) {
       console.error("[SG cliente consulta]", errorSummary(error));
     }
   }
   return 0;
+}
+
+function osIdsFromList(data, contractId) {
+  const target = String(contractId || "");
+  return collectObjects(data)
+    .filter((item) => {
+      const itemContract = String(item.contrato || item.contrato_id || item.clientecontrato_id || "");
+      return !target || itemContract === target;
+    })
+    .map((item) => Number(item.os || item.os_id || item.id || 0))
+    .filter((id) => id > 0);
+}
+
+async function latestOsIdForContract(contractId) {
+  if (!contractId) return 0;
+  try {
+    const data = await sgpForm("/api/os/list/", {
+      app: SGP_APP,
+      token: SGP_TOKEN,
+      contrato_id: contractId
+    });
+    const ids = osIdsFromList(data, contractId);
+    return ids.length ? Math.max(...ids) : 0;
+  } catch (error) {
+    console.error("[SG OS consulta]", errorSummary(error));
+    return 0;
+  }
+}
+
+async function updateInstallationOs(contractId, serviceDescription) {
+  const osId = await latestOsIdForContract(contractId);
+  if (!osId) return 0;
+  await sgpForm(`/api/os/update/id/${osId}/`, {
+    app: SGP_APP,
+    token: SGP_TOKEN,
+    os_observacao: serviceDescription,
+    os_servicoprestado: serviceDescription
+  });
+  return osId;
 }
 
 async function latestContractIdFor(cpf) {
@@ -975,6 +1032,13 @@ async function handleCadastro(req, res) {
     const directClienteId = Number(client.cliente_id || client?.cliente?.id || 0);
     registerSuccessfulCadastro(dailyLimitKeys);
     const contractId = await latestContractIdFor(cpf);
+    if (contractId) {
+      try {
+        await updateInstallationOs(contractId, serviceDescription);
+      } catch (error) {
+        console.error("[SG OS atualizar]", errorSummary(error));
+      }
+    }
     const clienteId = await clienteIdFor(cpf, contractId) || directClienteId;
     let documentMessage = "Documentos recebidos e anexados ao cadastro.";
     try {
