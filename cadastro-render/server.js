@@ -13,7 +13,7 @@ const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === "true";
 const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
-const ADMIN_USER = clean(process.env.ADMIN_USER || "admin", 80);
+const ADMIN_USER = clean(process.env.ADMIN_USER || "Gustavo", 80);
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
 const sessions = new Map();
 const rates = new Map();
