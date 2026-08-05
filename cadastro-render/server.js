@@ -561,22 +561,18 @@ function installationServiceDescription({ name, cpf, phone, email, rg, planLabel
     rg: clean(rg, 30),
     plano: clean(planLabel, 100),
     vencimento: String(vencimentoDay),
-    endereco: `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ""} - ${address.bairro}, ${address.cidade}/${address.uf}, CEP ${address.cep}`,
-    referencia: clean(address.pontoreferencia, 180) || "Nao informado"
+    endereco: `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ""} - ${address.bairro}, ${address.cidade}/${address.uf}`,
+    cep: address.cep,
+    referencia: clean(address.pontoreferencia, 180)
   };
   if (installationDescriptionTemplate) return fillTemplate(installationDescriptionTemplate, values);
   return [
-    "INSTALACAO - Cadastro realizado pelo formulario publico SG Fibra.",
-    `Cliente: ${values.nome}`,
-    `CPF: ${values.cpf}`,
-    `RG: ${values.rg}`,
-    `Plano contratado: ${values.plano}`,
-    `Vencimento escolhido: dia ${values.vencimento}`,
-    `PPPoE: login ${values.cpf} / senha sgfibra`,
-    `Endereco: ${values.endereco}`,
-    `Referencia: ${values.referencia}`,
-    `Contato: WhatsApp ${values.telefone} / E-mail ${values.email}`,
-    "Orientacao: confirmar disponibilidade, passagem de fibra e melhor ponto de instalacao antes de finalizar a OS."
+    `Plano escolhido: ${values.plano}`,
+    "Contrato assinado:",
+    "Disponibilidade:",
+    `Endereco completo: ${values.endereco}`,
+    `Cep: ${values.cep}`,
+    `Ponto de referencia: ${values.referencia}`
   ].join("\n");
 }
 
