@@ -310,7 +310,9 @@ function htmlPage(csrf) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="robots" content="noindex, nofollow">
-  <title>Cadastro SG Fibra</title>
+  <title>&Aacute;rea de cadastro</title>
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="shortcut icon" href="/favicon.ico">
   <style>
     :root{--navy:#06172f;--blue:#006cff;--gold:#ffb31a;--soft:#f4f8fc;--line:#d9e4f2;--muted:#607086}
     *{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#06172f,#0b2447 48%,#f4f8fc 48%);color:#102033;font-family:Arial,Helvetica,sans-serif;line-height:1.45}
@@ -796,7 +798,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
-    if (req.method === "GET" && url.pathname === "/logo.png") {
+    if (req.method === "GET" && (url.pathname === "/logo.png" || url.pathname === "/favicon.ico")) {
       const logo = fs.readFileSync(logoPath);
       return send(res, 200, logo, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
     }
