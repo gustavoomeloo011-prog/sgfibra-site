@@ -15,7 +15,7 @@ const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === 
 const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
 const ADMIN_USER = clean(process.env.ADMIN_USER || "Gustavo", 80);
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
-const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 94721-1931", 40);
+const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 91497-3216", 40);
 const sessions = new Map();
 const rates = new Map();
 const adminEvents = [];
@@ -46,7 +46,6 @@ const contractConfig = {
 
 const emailConfig = {
   enabled: String(process.env.CONFIRMATION_EMAIL_ENABLED || "false") === "true",
-  attachContractTerm: String(process.env.CONFIRMATION_EMAIL_ATTACH_TERM || "true") === "true",
   brevoApiKey: String(process.env.BREVO_API_KEY || ""),
   brevoSenderEmail: clean(process.env.BREVO_SENDER_EMAIL || "", 180),
   brevoSenderName: clean(process.env.BREVO_SENDER_NAME || "SG Fibra", 80),
@@ -154,6 +153,34 @@ function errorSummary(error) {
 
 function fillTemplate(template, values) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => values[key] || "");
+}
+
+function publicBaseUrl(req = null) {
+  const configured = clean(PUBLIC_BASE_URL, 220).replace(/\/$/, "");
+  if (configured) return configured;
+  if (req?.headers?.host) return `https://${req.headers.host}`;
+  return "";
+}
+
+function termSignature(contractId) {
+  return crypto
+    .createHmac("sha256", SESSION_SECRET)
+    .update(`contrato-termo:${contractId}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function validTermSignature(contractId, signature) {
+  const expected = termSignature(contractId);
+  const received = clean(signature, 80);
+  return received.length === expected.length && crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));
+}
+
+function contractTermUrl(contractId) {
+  const id = clean(contractId, 40);
+  const base = publicBaseUrl();
+  if (!base || !id || id === "em analise") return "";
+  return `${base}/contrato/${encodeURIComponent(id)}/termo?assinatura=${termSignature(id)}`;
 }
 
 function isDuplicateCpfError(error) {
@@ -1098,7 +1125,7 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
   const safePlan = clean(planLabel, 100) || "plano escolhido";
   const safeContract = clean(contractId, 40) || "em analise";
   const safeVencimento = clean(vencimentoDay, 2) || "informado";
-  const attachments = await confirmationEmailAttachments(safeContract);
+  const termUrl = contractTermUrl(safeContract);
   const subject = "Cadastro recebido - SG Fibra";
   const text = [
     `Ola, ${safeName}.`,
@@ -1111,8 +1138,8 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     `Vencimento escolhido: dia ${safeVencimento}`,
     `Atendimento: ${CONTACT_WHATSAPP}`,
     "",
-    attachments.length
-      ? "O termo/contrato eletronico segue anexado para sua conferencia."
+    termUrl
+      ? `Acesse o contrato para conferencia e assinatura: ${termUrl}`
       : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.",
     "",
     "Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.",
@@ -1121,8 +1148,12 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     "SG Fibra"
   ].join("\n");
   const html = `
-    <div style="font-family:Arial,sans-serif;color:#102033;line-height:1.5">
-      <h2 style="color:#0066ff;margin:0 0 12px">Cadastro recebido - SG Fibra</h2>
+    <div style="font-family:Arial,sans-serif;color:#102033;line-height:1.5;max-width:620px;margin:0 auto">
+      <div style="background:#06172f;border-radius:14px 14px 0 0;padding:22px;text-align:center">
+        <img src="${escapeHtml(publicBaseUrl())}/logo.png" alt="SG Fibra" style="display:block;height:auto;margin:0 auto;max-width:170px">
+      </div>
+      <div style="border:1px solid #d7e6ff;border-top:0;border-radius:0 0 14px 14px;padding:24px">
+      <h2 style="color:#0066ff;margin:0 0 12px">Bem-vindo(a) a SG Fibra</h2>
       <p>Ola, <strong>${escapeHtml(safeName)}</strong>.</p>
       <p>Seja bem-vindo(a) a SG Fibra. Recebemos seu cadastro e vamos dar continuidade com a contratacao do novo ponto.</p>
       <div style="background:#f4f8ff;border:1px solid #d7e6ff;border-radius:8px;margin:18px 0;padding:14px">
@@ -1131,14 +1162,17 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
         <p style="margin:0 0 8px"><strong>Vencimento escolhido:</strong> dia ${escapeHtml(safeVencimento)}</p>
         <p style="margin:0"><strong>Atendimento:</strong> ${escapeHtml(CONTACT_WHATSAPP)}</p>
       </div>
-      <p>${attachments.length ? "O termo/contrato eletronico segue anexado para sua conferencia." : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp."}</p>
+      ${termUrl ? `<p>Confira seu contrato e finalize a assinatura pelo link abaixo:</p>
+      <p style="margin:22px 0"><a href="${escapeHtml(termUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Ver e assinar contrato</a></p>
+      <p style="font-size:13px;color:#607086;word-break:break-all">Se o botao nao abrir, copie este link: ${escapeHtml(termUrl)}</p>` : "<p>Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.</p>"}
       <p>Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.</p>
       <p>Atenciosamente,<br><strong>SG Fibra</strong></p>
+      </div>
     </div>
   `;
 
   if (brevoEmailReady()) {
-    await sendBrevoEmail({ to, name: safeName, subject, text, html, attachments });
+    await sendBrevoEmail({ to, name: safeName, subject, text, html });
     return;
   }
 
@@ -1149,36 +1183,12 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
       replyTo: emailConfig.replyTo || undefined,
       subject,
       text,
-      html,
-      attachments
+      html
     });
   }
 }
 
-async function confirmationEmailAttachments(contractId) {
-  if (!emailConfig.attachContractTerm || !contractId || contractId === "em analise") return [];
-  try {
-    const data = await sgpGetJson(`/api/contrato/termoaceite/${encodeURIComponent(contractId)}/`, {
-      app: SGP_APP,
-      token: SGP_TOKEN
-    }, "o termo do contrato");
-    const termHtml = typeof data?.html === "string" ? data.html : "";
-    if (!termHtml.trim()) return [];
-    return [{
-      filename: `contrato-sg-fibra-${contractId}.html`,
-      content: Buffer.from(termHtml, "utf8"),
-      contentType: "text/html"
-    }];
-  } catch (error) {
-    addEvent("email", "termo-nao-anexado", {
-      contrato: contractId,
-      error: errorSummary(error)
-    });
-    return [];
-  }
-}
-
-async function sendBrevoEmail({ to, name, subject, text, html, attachments = [] }) {
+async function sendBrevoEmail({ to, name, subject, text, html }) {
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
@@ -1197,11 +1207,7 @@ async function sendBrevoEmail({ to, name, subject, text, html, attachments = [] 
         : undefined,
       subject,
       textContent: text,
-      htmlContent: html,
-      attachment: attachments.map((attachment) => ({
-        name: attachment.filename,
-        content: Buffer.from(attachment.content).toString("base64")
-      }))
+      htmlContent: html
     }),
     signal: AbortSignal.timeout(12000)
   });
@@ -1246,6 +1252,40 @@ async function geocodeAddress(address) {
     return `${lat.toFixed(7)},${lon.toFixed(7)}`;
   } catch {
     return "";
+  }
+}
+
+async function handleContractTerm(req, res, url) {
+  const match = url.pathname.match(/^\/contrato\/([^/]+)\/termo$/);
+  if (!match) return false;
+  const contractId = clean(decodeURIComponent(match[1] || ""), 40);
+  if (!contractId || !validTermSignature(contractId, url.searchParams.get("assinatura") || "")) {
+    send(res, 403, "Link do contrato invalido ou expirado.", { "Content-Type": "text/plain; charset=utf-8" });
+    return true;
+  }
+  try {
+    const data = await sgpGetJson(`/api/contrato/termoaceite/${encodeURIComponent(contractId)}/`, {
+      app: SGP_APP,
+      token: SGP_TOKEN
+    }, "o termo do contrato");
+    const termHtml = typeof data?.html === "string" ? data.html : "";
+    if (!termHtml.trim()) {
+      send(res, 404, "Contrato ainda nao disponivel. Fale com a SG Fibra pelo WhatsApp.", { "Content-Type": "text/plain; charset=utf-8" });
+      return true;
+    }
+    send(res, 200, termHtml, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'self' https://sgfibra.sgp.tsmx.app; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://sgfibra.sgp.tsmx.app; script-src 'self' 'unsafe-inline' https://sgfibra.sgp.tsmx.app; connect-src 'self' https://sgfibra.sgp.tsmx.app; form-action 'self' https://sgfibra.sgp.tsmx.app; base-uri 'self'; frame-ancestors 'none'"
+    });
+    return true;
+  } catch (error) {
+    addEvent("contrato", "termo-erro", {
+      contrato: contractId,
+      error: errorSummary(error)
+    });
+    send(res, 502, "Nao foi possivel abrir o contrato agora. Tente novamente ou fale com a SG Fibra.", { "Content-Type": "text/plain; charset=utf-8" });
+    return true;
   }
 }
 
@@ -1478,6 +1518,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && (url.pathname === "/logo.png" || url.pathname === "/favicon.ico")) {
       const logo = fs.readFileSync(logoPath);
       return send(res, 200, logo, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
+    }
+    if (req.method === "GET" && /^\/contrato\/[^/]+\/termo$/.test(url.pathname)) {
+      if (await handleContractTerm(req, res, url)) return;
     }
     if (req.method === "GET" && url.pathname === "/") {
       const session = makeSession(req, res);

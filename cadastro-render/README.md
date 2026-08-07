@@ -16,7 +16,6 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - `ADMIN_USER` e `ADMIN_PASSWORD`, para liberar o painel operacional em `/admin`
    - `CONTACT_WHATSAPP`, para aparecer no e-mail de boas-vindas
    - `CONFIRMATION_EMAIL_ENABLED=true` e `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, caso queira enviar e-mail automatico de confirmacao ao cliente pelo Brevo
-   - `CONFIRMATION_EMAIL_ATTACH_TERM=true`, caso queira anexar o termo/contrato eletronico retornado pelo SGP
    - `SMTP_*`, caso prefira usar SMTP em vez da API do Brevo
 3. No Render, cadastre o dominio:
    - `cadastro.sgfibra.com.br`
@@ -30,6 +29,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
 - O token nao aparece no HTML, CSS ou JavaScript do cliente.
 - O formulario usa CSRF, cookie seguro, honeypot, limite diario simples, limite de tamanho para documentos e cabecalhos de seguranca.
 - As fotos do documento passam pelo servidor antes de seguir para a aba Documentos do cliente no SGP; `app` e `token` continuam ocultos.
+- O link do contrato no e-mail passa pelo cadastro e usa assinatura segura, sem expor `app` e `token` ao cliente.
 - O painel operacional fica protegido por senha e mostra apenas logs recentes em memoria.
 - A pagina vem com `noindex`, porque e um link operacional para clientes, nao uma pagina para aparecer no Google.
 
