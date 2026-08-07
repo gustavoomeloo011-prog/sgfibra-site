@@ -19,6 +19,7 @@ const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
 const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 91497-3216", 40);
 const CONTACT_EMAIL = clean(process.env.CONTACT_EMAIL || "sgfibra.contato@gmail.com", 180);
 const SITE_URL = clean(process.env.SITE_URL || "https://sgfibra.com.br", 220);
+const SIGNATURE_CONTRACT_URL_TEMPLATE = clean(process.env.SIGNATURE_CONTRACT_URL_TEMPLATE || "", 700);
 const GOOGLE_REVIEW_URL = clean(
   process.env.GOOGLE_REVIEW_URL || "https://share.google/xzOgr6uyXR8uDLQsg",
   500
@@ -182,6 +183,17 @@ function normalizedErrorSummary(error) {
 
 function fillTemplate(template, values) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => values[key] || "");
+}
+
+function contractSignatureUrl(contractId) {
+  const id = clean(contractId, 40);
+  if (!SIGNATURE_CONTRACT_URL_TEMPLATE || !id || id === "em analise") return "";
+  return fillTemplate(SIGNATURE_CONTRACT_URL_TEMPLATE, {
+    id,
+    contrato: id,
+    contractId: id,
+    contrato_id: id
+  });
 }
 
 function publicBaseUrl(req = null) {
@@ -1281,14 +1293,11 @@ function installationServiceDescription({ name, cpf, phone, email, rg, planLabel
     "📌 Novo cadastro recebido pelo site SG Fibra",
     "",
     `📶 Plano escolhido: ${values.plano}`,
-    `🗓️ Vencimento escolhido: dia ${values.vencimento}`,
     `⏰ Disponibilidade para instalacao: ${values.disponibilidade}`,
     "",
     `👤 Cliente: ${values.nome}`,
     `🪪 CPF: ${values.cpf}`,
-    `🪪 RG: ${values.rg}`,
     `📱 WhatsApp: ${values.telefone}`,
-    `📧 E-mail: ${values.email}`,
     "",
     `🏠 Endereco completo: ${values.endereco}`,
     `📮 CEP: ${values.cep}`,
@@ -1321,10 +1330,7 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
   const safePlan = clean(planLabel, 100) || "plano escolhido";
   const safeContract = clean(contractId, 40) || "em analise";
   const safeVencimento = clean(vencimentoDay, 2) || "informado";
-  if (safeContract !== "em analise") {
-    await waitForContractTerm(safeContract);
-  }
-  const termUrl = contractTermUrl(safeContract);
+  const signatureUrl = contractSignatureUrl(safeContract);
   const subject = "Cadastro recebido - SG Fibra";
   const text = [
     `Ola, ${safeName}.`,
@@ -1339,9 +1345,9 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     `Site: ${SITE_URL}`,
     `E-mail: ${CONTACT_EMAIL}`,
     "",
-    termUrl
-      ? `Acesse o contrato para conferencia e assinatura: ${termUrl}`
-      : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.",
+    signatureUrl
+      ? `Acesse o contrato para conferencia e assinatura eletronica: ${signatureUrl}`
+      : "O link correto da assinatura eletronica do contrato sera enviado pela equipe SG Fibra assim que estiver disponivel.",
     "",
     `Avalie nosso atendimento no Google: ${GOOGLE_REVIEW_URL}`,
     "",
@@ -1367,9 +1373,9 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
         <p style="margin:0 0 8px"><strong>Site:</strong> <a href="${escapeHtml(SITE_URL)}" style="color:#006cff">${escapeHtml(SITE_URL)}</a></p>
         <p style="margin:0"><strong>E-mail:</strong> <a href="mailto:${escapeHtml(CONTACT_EMAIL)}" style="color:#006cff">${escapeHtml(CONTACT_EMAIL)}</a></p>
       </div>
-      ${termUrl ? `<p>Confira seu contrato e finalize a assinatura pelo link abaixo:</p>
-      <p style="margin:22px 0"><a href="${escapeHtml(termUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Ver e assinar contrato</a></p>
-      <p style="font-size:13px;color:#607086;word-break:break-all">Se o botao nao abrir, copie este link: ${escapeHtml(termUrl)}</p>` : "<p>Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.</p>"}
+      ${signatureUrl ? `<p>Confira seu contrato e finalize a assinatura eletronica pelo link abaixo:</p>
+      <p style="margin:22px 0;text-align:center"><a href="${escapeHtml(signatureUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Assinar contrato</a></p>
+      <p style="font-size:13px;color:#607086;word-break:break-all">Se o botao nao abrir, copie este link: ${escapeHtml(signatureUrl)}</p>` : "<p>O link correto da assinatura eletronica do contrato sera enviado pela equipe SG Fibra assim que estiver disponivel.</p>"}
       <div style="background:#fff8df;border:1px solid #ffd166;border-radius:10px;margin:22px 0;padding:18px;text-align:center">
         <p style="font-size:18px;font-weight:800;margin:0 0 8px;color:#102033">Gostou do atendimento?</p>
         <p style="margin:0 0 16px;color:#30445f">Sua avaliacao no Google ajuda outros clientes a conhecerem a SG Fibra.</p>
