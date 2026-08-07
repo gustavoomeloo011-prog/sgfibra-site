@@ -8,6 +8,8 @@ const PORT = Number(process.env.PORT || 3000);
 const SGP_URL = process.env.SGP_URL || "https://sgfibra.sgp.tsmx.app";
 const SGP_APP = process.env.SGP_APP || "";
 const SGP_TOKEN = process.env.SGP_TOKEN || "";
+const SGP_WEB_USER = clean(process.env.SGP_WEB_USER || "", 80);
+const SGP_WEB_PASSWORD = String(process.env.SGP_WEB_PASSWORD || "");
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
 const SUBMISSION_LOCK_MS = Number(process.env.SUBMISSION_LOCK_MS || 5 * 60 * 1000);
@@ -194,6 +196,10 @@ function contractSignatureUrl(contractId) {
     contractId: id,
     contrato_id: id
   });
+}
+
+function firstMatch(text, pattern) {
+  return String(text || "").match(pattern)?.[1] || "";
 }
 
 function publicBaseUrl(req = null) {
@@ -1058,6 +1064,114 @@ async function sgpGetJson(path, params = {}, actionLabel = "a consulta") {
   return data;
 }
 
+async function sgpWebRequest(path, options = {}, jar = { value: "" }) {
+  const headers = { ...(options.headers || {}) };
+  if (jar.value) headers.cookie = jar.value;
+  const response = await fetch(`${SGP_URL.replace(/\/$/, "")}${path}`, {
+    ...options,
+    headers,
+    redirect: "manual",
+    signal: AbortSignal.timeout(options.timeout || 25000)
+  });
+  const setCookie = response.headers.get("set-cookie");
+  if (setCookie) {
+    const cookies = setCookie
+      .split(/,(?=\s*[^;=]+=[^;]+)/)
+      .map((cookie) => cookie.split(";")[0].trim())
+      .filter(Boolean)
+      .join("; ");
+    jar.value = jar.value ? `${jar.value}; ${cookies}` : cookies;
+  }
+  return response;
+}
+
+async function sgpWebLogin() {
+  if (!SGP_WEB_USER || !SGP_WEB_PASSWORD) throw new Error("Login web do SGP nao configurado.");
+  const jar = { value: "" };
+  const loginPage = await sgpWebRequest("/accounts/login?next=/admin/", {}, jar);
+  const loginHtml = await loginPage.text();
+  const csrf = firstMatch(loginHtml, /name=['"]csrfmiddlewaretoken['"] value=['"]([^'"]+)/);
+  if (!csrf) throw new Error("Nao foi possivel abrir o login web do SGP.");
+  const body = new URLSearchParams({
+    csrfmiddlewaretoken: csrf,
+    username: SGP_WEB_USER,
+    password: SGP_WEB_PASSWORD,
+    next: "/admin/"
+  });
+  const response = await sgpWebRequest("/accounts/login/", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      referer: `${SGP_URL.replace(/\/$/, "")}/accounts/login?next=/admin/`
+    },
+    body
+  }, jar);
+  const location = response.headers.get("location") || "";
+  if (response.status < 300 || response.status >= 400 || !location.includes("/admin/")) {
+    throw new Error("Login web do SGP recusado.");
+  }
+  return jar;
+}
+
+function signaturePublicLinkFromHtml(html) {
+  return firstMatch(html, /href=["'](https?:\/\/[^"']+\/public\/assinatura_eletronica\/[^"']+)["']/i).replace(/&amp;/g, "&");
+}
+
+async function sgpGenerateSignatureContractUrl(contractId) {
+  const id = clean(contractId, 40);
+  if (!id || id === "em analise") return "";
+  const jar = await sgpWebLogin();
+  const detailPath = `/admin/contrato/${encodeURIComponent(id)}/gateway/detail/contrato?gateway_html_id=gateway_${encodeURIComponent(id)}_contrato`;
+  const detailResponse = await sgpWebRequest(detailPath, {}, jar);
+  let detailHtml = await detailResponse.text();
+  let publicLink = signaturePublicLinkFromHtml(detailHtml);
+  if (publicLink) return publicLink;
+
+  const addPath = `/admin/contrato/${encodeURIComponent(id)}/gateway/add/contrato/noauth`;
+  const addResponse = await sgpWebRequest(addPath, {}, jar);
+  const addHtml = await addResponse.text();
+  const csrf = firstMatch(addHtml, /name=['"]csrfmiddlewaretoken['"] value=['"]([^'"]+)/);
+  const dpbToken = firstMatch(addHtml, /name=['"]dpb_token['"] value=['"]([^'"]+)/);
+  if (!csrf || !dpbToken) throw new Error("Formulario de assinatura eletronica nao encontrado.");
+  const body = new URLSearchParams({
+    csrfmiddlewaretoken: csrf,
+    dpb_token: dpbToken,
+    solicitar_geolocalizacao: "on",
+    data_expiracao: ""
+  });
+  await sgpWebRequest(addPath, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      referer: `${SGP_URL.replace(/\/$/, "")}${detailPath}`
+    },
+    body,
+    timeout: 30000
+  }, jar);
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 3000 : 6000));
+    const refreshed = await sgpWebRequest(detailPath, {}, jar);
+    detailHtml = await refreshed.text();
+    publicLink = signaturePublicLinkFromHtml(detailHtml);
+    if (publicLink) return publicLink;
+  }
+  throw new Error("Assinatura eletronica gerada, mas o link ainda nao apareceu no SGP.");
+}
+
+async function resolveSignatureContractUrl(contractId) {
+  const templateUrl = contractSignatureUrl(contractId);
+  if (templateUrl) return templateUrl;
+  if (!SGP_WEB_USER || !SGP_WEB_PASSWORD) return "";
+  try {
+    const url = await sgpGenerateSignatureContractUrl(contractId);
+    addEvent("contrato", "assinatura-gerada", { contrato: clean(contractId, 40), url: url ? "ok" : "vazio" });
+    return url;
+  } catch (error) {
+    addEvent("contrato", "assinatura-erro", { contrato: clean(contractId, 40), error: errorSummary(error) });
+    return "";
+  }
+}
+
 function normalizeCpfText(value) {
   return onlyDigits(value).slice(-11);
 }
@@ -1330,7 +1444,7 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
   const safePlan = clean(planLabel, 100) || "plano escolhido";
   const safeContract = clean(contractId, 40) || "em analise";
   const safeVencimento = clean(vencimentoDay, 2) || "informado";
-  const signatureUrl = contractSignatureUrl(safeContract);
+  const signatureUrl = await resolveSignatureContractUrl(safeContract);
   const subject = "Cadastro recebido - SG Fibra";
   const text = [
     `Ola, ${safeName}.`,
