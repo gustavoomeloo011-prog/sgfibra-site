@@ -45,6 +45,9 @@ const contractConfig = {
 
 const emailConfig = {
   enabled: String(process.env.CONFIRMATION_EMAIL_ENABLED || "false") === "true",
+  brevoApiKey: String(process.env.BREVO_API_KEY || ""),
+  brevoSenderEmail: clean(process.env.BREVO_SENDER_EMAIL || "", 180),
+  brevoSenderName: clean(process.env.BREVO_SENDER_NAME || "SG Fibra", 80),
   host: clean(process.env.SMTP_HOST || "", 180),
   port: Number(process.env.SMTP_PORT || 465),
   secure: String(process.env.SMTP_SECURE || "true") === "true",
@@ -971,7 +974,15 @@ async function latestContractIdFor(cpf) {
 }
 
 function confirmationEmailReady() {
-  return emailConfig.enabled && emailConfig.host && emailConfig.port && emailConfig.user && emailConfig.pass && emailConfig.from;
+  return emailConfig.enabled && (brevoEmailReady() || smtpEmailReady());
+}
+
+function brevoEmailReady() {
+  return emailConfig.brevoApiKey && emailConfig.brevoSenderEmail;
+}
+
+function smtpEmailReady() {
+  return emailConfig.host && emailConfig.port && emailConfig.user && emailConfig.pass && emailConfig.from;
 }
 
 function validateDocumentFile(file, label) {
@@ -1093,14 +1104,50 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     </div>
   `;
 
-  await getMailTransporter().sendMail({
-    from: emailConfig.from,
-    to,
-    replyTo: emailConfig.replyTo || undefined,
-    subject,
-    text,
-    html
+  if (brevoEmailReady()) {
+    await sendBrevoEmail({ to, name: safeName, subject, text, html });
+    return;
+  }
+
+  if (smtpEmailReady()) {
+    await getMailTransporter().sendMail({
+      from: emailConfig.from,
+      to,
+      replyTo: emailConfig.replyTo || undefined,
+      subject,
+      text,
+      html
+    });
+  }
+}
+
+async function sendBrevoEmail({ to, name, subject, text, html }) {
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      "api-key": emailConfig.brevoApiKey
+    },
+    body: JSON.stringify({
+      sender: {
+        name: emailConfig.brevoSenderName || "SG Fibra",
+        email: emailConfig.brevoSenderEmail
+      },
+      to: [{ email: to, name }],
+      replyTo: emailConfig.replyTo
+        ? { email: emailConfig.replyTo, name: emailConfig.brevoSenderName || "SG Fibra" }
+        : undefined,
+      subject,
+      textContent: text,
+      htmlContent: html
+    }),
+    signal: AbortSignal.timeout(12000)
   });
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(`Brevo recusou o envio (${response.status}): ${body.slice(0, 300)}`);
+  }
 }
 
 async function geocodeAddress(address) {

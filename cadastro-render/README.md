@@ -14,7 +14,8 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - demais IDs de contrato, se for criar contrato automaticamente
    - `INSTALLATION_SERVICE_DESCRIPTION`, caso queira personalizar o texto enviado como detalhes do servico solicitado na instalacao
    - `ADMIN_USER` e `ADMIN_PASSWORD`, para liberar o painel operacional em `/admin`
-   - `CONFIRMATION_EMAIL_ENABLED=true` e os dados `SMTP_*`, caso queira enviar e-mail automatico de confirmacao ao cliente
+   - `CONFIRMATION_EMAIL_ENABLED=true` e `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, caso queira enviar e-mail automatico de confirmacao ao cliente pelo Brevo
+   - `SMTP_*`, caso prefira usar SMTP em vez da API do Brevo
 3. No Render, cadastre o dominio:
    - `cadastro.sgfibra.com.br`
 4. No Registro.br, crie o apontamento DNS indicado pelo Render para esse subdominio.
@@ -23,6 +24,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
 
 - O token nao fica no GitHub.
 - A senha do e-mail/SMTP tambem deve ficar somente no Render.
+- A chave do Brevo tambem deve ficar somente no Render.
 - O token nao aparece no HTML, CSS ou JavaScript do cliente.
 - O formulario usa CSRF, cookie seguro, honeypot, limite diario simples, limite de tamanho para documentos e cabecalhos de seguranca.
 - As fotos do documento passam pelo servidor antes de seguir para a aba Documentos do cliente no SGP; `app` e `token` continuam ocultos.
