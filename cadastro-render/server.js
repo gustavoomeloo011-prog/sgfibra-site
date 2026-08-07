@@ -165,6 +165,12 @@ function formatCpfDisplay(value) {
   return `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
 }
 
+function formatCepDisplay(value) {
+  const cep = onlyDigits(value).slice(0, 8);
+  if (cep.length <= 5) return cep;
+  return `${cep.slice(0, 5)}-${cep.slice(5)}`;
+}
+
 function sgpFieldError(error) {
   const errors = error?.data?.errors;
   if (!errors || typeof errors !== "object") return "";
@@ -595,6 +601,11 @@ function htmlPage(csrf) {
     if (cleanValue.length <= 7) return "(" + cleanValue.slice(0, 2) + ") " + cleanValue.slice(2);
     return "(" + cleanValue.slice(0, 2) + ") " + cleanValue.slice(2, 7) + "-" + cleanValue.slice(7);
   };
+  const formatCep = (value) => {
+    const cleanValue = digits(value).slice(0, 8);
+    if (cleanValue.length <= 5) return cleanValue;
+    return cleanValue.slice(0, 5) + "-" + cleanValue.slice(5);
+  };
   form.cpfcnpj.addEventListener("input", () => {
     form.cpfcnpj.value = formatCpf(form.cpfcnpj.value);
   });
@@ -603,6 +614,9 @@ function htmlPage(csrf) {
   });
   form.celular.addEventListener("input", () => {
     form.celular.value = formatPhone(form.celular.value);
+  });
+  form.cep.addEventListener("input", () => {
+    form.cep.value = formatCep(form.cep.value);
   });
   form.datanasc.addEventListener("input", () => {
     const value = digits(form.datanasc.value).slice(0, 8);
@@ -916,7 +930,17 @@ async function latestOsIdForContract(contractId) {
   }
 }
 
-async function updateInstallationOs(contractId, serviceDescription) {
+async function updateOccurrenceContent(osId, cpf, serviceDescription) {
+  await sgpForm(`/api/central/chamado/update/${osId}/`, {
+    app: SGP_APP,
+    token: SGP_TOKEN,
+    cpfcnpj: cpf,
+    senha: "sgfibra",
+    ocorrencia_conteudo: serviceDescription
+  });
+}
+
+async function updateInstallationOs(contractId, serviceDescription, cpf) {
   const osId = await latestOsIdForContract(contractId);
   if (!osId) return 0;
   await sgpForm(`/api/os/update/id/${osId}/`, {
@@ -925,6 +949,7 @@ async function updateInstallationOs(contractId, serviceDescription) {
     os_observacao: serviceDescription,
     os_servicoprestado: serviceDescription
   });
+  await updateOccurrenceContent(osId, cpf, serviceDescription);
   return osId;
 }
 
@@ -1168,7 +1193,7 @@ async function handleCadastro(req, res) {
     complemento: clean(data.complemento, 80),
     bairro: clean(data.bairro, 100),
     cidade: clean(data.cidade, 100),
-    cep: onlyDigits(data.cep),
+    cep: formatCepDisplay(data.cep),
     uf: clean(data.uf, 2).toUpperCase(),
     pais: "BR",
     pontoreferencia: clean(data.pontoreferencia)
@@ -1257,7 +1282,7 @@ async function handleCadastro(req, res) {
     });
     if (contractId) {
       enqueueJob("os", `Contrato ${contractId} - atualizar texto da OS`, async () => {
-        const osId = await updateInstallationOs(contractId, serviceDescription);
+        const osId = await updateInstallationOs(contractId, serviceDescription, cpf);
         if (!osId) throw new Error("OS nao localizada para o contrato.");
       });
     }
