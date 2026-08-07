@@ -15,6 +15,7 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - `INSTALLATION_SERVICE_DESCRIPTION`, caso queira personalizar o texto enviado como detalhes do servico solicitado na instalacao
    - `ADMIN_USER` e `ADMIN_PASSWORD`, para liberar o painel operacional em `/admin`
    - `CONTACT_WHATSAPP`, `CONTACT_EMAIL`, `SITE_URL` e `GOOGLE_REVIEW_URL`, para aparecerem no e-mail de boas-vindas
+   - `EMAIL_INITIAL_DELAY_MS`, `EMAIL_RETRY_DELAY_MS`, `TERM_READY_ATTEMPTS` e `TERM_READY_INTERVAL_MS`, para aguardar o SGP gerar o contrato antes do envio do e-mail
    - `CONFIRMATION_EMAIL_ENABLED=true` e `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, caso queira enviar e-mail automatico de confirmacao ao cliente pelo Brevo
    - `SMTP_*`, caso prefira usar SMTP em vez da API do Brevo
 3. No Render, cadastre o dominio:

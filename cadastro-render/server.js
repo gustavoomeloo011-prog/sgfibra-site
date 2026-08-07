@@ -22,11 +22,16 @@ const GOOGLE_REVIEW_URL = clean(
   process.env.GOOGLE_REVIEW_URL || "https://share.google/xzOgr6uyXR8uDLQsg",
   500
 );
+const EMAIL_INITIAL_DELAY_MS = Number(process.env.EMAIL_INITIAL_DELAY_MS || 45000);
+const EMAIL_RETRY_DELAY_MS = Number(process.env.EMAIL_RETRY_DELAY_MS || 30000);
+const TERM_READY_ATTEMPTS = Number(process.env.TERM_READY_ATTEMPTS || 4);
+const TERM_READY_INTERVAL_MS = Number(process.env.TERM_READY_INTERVAL_MS || 15000);
 const sessions = new Map();
 const rates = new Map();
 const adminEvents = [];
 const queueJobs = [];
 let queueRunning = false;
+let queueTimer = null;
 const logoPath = path.join(__dirname, "..", "imagens", "logo-transparent.png");
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
 const MAX_REQUEST_BYTES = Number(process.env.MAX_REQUEST_BYTES || 14 * 1024 * 1024);
@@ -187,6 +192,33 @@ function contractTermUrl(contractId) {
   const base = publicBaseUrl();
   if (!base || !id || id === "em analise") return "";
   return `${base}/contrato/${encodeURIComponent(id)}/termo?assinatura=${termSignature(id)}`;
+}
+
+async function contractTermHtml(contractId) {
+  const data = await sgpGetJson(`/api/contrato/termoaceite/${encodeURIComponent(contractId)}/`, {
+    app: SGP_APP,
+    token: SGP_TOKEN
+  }, "o termo do contrato");
+  return typeof data?.html === "string" ? data.html : "";
+}
+
+async function waitForContractTerm(contractId) {
+  const id = clean(contractId, 40);
+  if (!id || id === "em analise") return false;
+  let lastError = "";
+  for (let attempt = 1; attempt <= TERM_READY_ATTEMPTS; attempt += 1) {
+    try {
+      const html = await contractTermHtml(id);
+      if (html.trim()) return true;
+      lastError = "SGP ainda nao retornou o HTML do contrato.";
+    } catch (error) {
+      lastError = errorSummary(error);
+    }
+    if (attempt < TERM_READY_ATTEMPTS) {
+      await new Promise((resolve) => setTimeout(resolve, TERM_READY_INTERVAL_MS));
+    }
+  }
+  throw new Error(`Contrato ainda nao gerado pelo SGP. ${lastError}`);
 }
 
 function isDuplicateCpfError(error) {
@@ -410,6 +442,7 @@ function publicJob(job) {
     id: job.id,
     at: job.at,
     updatedAt: job.updatedAt,
+    scheduledAt: job.scheduledAt,
     type: job.type,
     status: job.status,
     attempts: job.attempts,
@@ -419,11 +452,13 @@ function publicJob(job) {
   };
 }
 
-function enqueueJob(type, summary, run, maxAttempts = 3) {
+function enqueueJob(type, summary, run, maxAttempts = 3, delayMs = 0) {
+  const now = Date.now();
   const job = {
     id: crypto.randomBytes(6).toString("hex").toUpperCase(),
-    at: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    at: new Date(now).toISOString(),
+    updatedAt: new Date(now).toISOString(),
+    scheduledAt: new Date(now + Math.max(0, delayMs)).toISOString(),
     type,
     status: "pendente",
     attempts: 0,
@@ -434,9 +469,24 @@ function enqueueJob(type, summary, run, maxAttempts = 3) {
   };
   queueJobs.unshift(job);
   queueJobs.splice(100);
-  addEvent("fila", "pendente", { job: job.id, type, summary });
-  processQueue();
+  addEvent("fila", "pendente", { job: job.id, type, summary, scheduledAt: job.scheduledAt });
+  scheduleQueue();
   return job;
+}
+
+function scheduleQueue() {
+  if (queueTimer) clearTimeout(queueTimer);
+  const now = Date.now();
+  const pending = queueJobs
+    .filter((item) => item.status === "pendente")
+    .map((item) => Date.parse(item.scheduledAt || item.at || new Date().toISOString()))
+    .filter((time) => Number.isFinite(time));
+  if (!pending.length) return;
+  const wait = Math.max(0, Math.min(...pending) - now);
+  queueTimer = setTimeout(() => {
+    queueTimer = null;
+    processQueue();
+  }, wait);
 }
 
 async function processQueue() {
@@ -444,7 +494,10 @@ async function processQueue() {
   queueRunning = true;
   try {
     while (true) {
-      const job = [...queueJobs].reverse().find((item) => item.status === "pendente");
+      const now = Date.now();
+      const job = [...queueJobs].reverse().find((item) => (
+        item.status === "pendente" && Date.parse(item.scheduledAt || item.at) <= now
+      ));
       if (!job) break;
       job.status = "processando";
       job.attempts += 1;
@@ -460,11 +513,15 @@ async function processQueue() {
         job.error = errorSummary(error);
         job.updatedAt = new Date().toISOString();
         job.status = job.attempts < job.maxAttempts ? "pendente" : "falhou";
+        if (job.status === "pendente") {
+          job.scheduledAt = new Date(Date.now() + EMAIL_RETRY_DELAY_MS).toISOString();
+        }
         addEvent("fila", job.status, { job: job.id, type: job.type, error: job.error });
       }
     }
   } finally {
     queueRunning = false;
+    scheduleQueue();
   }
 }
 
@@ -511,8 +568,8 @@ function adminLoginPage(error = "") {
 function adminPage() {
   const rows = queueJobs.map((job) => {
     const retry = job.status === "falhou" ? `<form method="post" action="/admin/retry?id=${escapeHtml(job.id)}"><button>Tentar de novo</button></form>` : "";
-    return `<tr><td>${escapeHtml(job.status)}</td><td>${escapeHtml(job.type)}</td><td>${escapeHtml(job.summary)}</td><td>${job.attempts}/${job.maxAttempts}</td><td>${escapeHtml(job.error || "-")}</td><td>${retry}</td></tr>`;
-  }).join("") || `<tr><td colspan="6">Nenhuma tarefa registrada.</td></tr>`;
+    return `<tr><td>${escapeHtml(job.status)}</td><td>${escapeHtml(job.type)}</td><td>${escapeHtml(job.summary)}</td><td>${escapeHtml(formatDateTime(job.scheduledAt || job.at))}</td><td>${job.attempts}/${job.maxAttempts}</td><td>${escapeHtml(job.error || "-")}</td><td>${retry}</td></tr>`;
+  }).join("") || `<tr><td colspan="7">Nenhuma tarefa registrada.</td></tr>`;
   const logs = adminEvents.map((event) => (
     `<tr><td>${escapeHtml(formatDateTime(event.at))}</td><td>${escapeHtml(event.type)}</td><td>${escapeHtml(event.status)}</td><td><pre>${escapeHtml(JSON.stringify(event.details, null, 2))}</pre></td></tr>`
   )).join("") || `<tr><td colspan="4">Nenhum log registrado desde o ultimo reinicio.</td></tr>`;
@@ -1134,6 +1191,9 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
   const safePlan = clean(planLabel, 100) || "plano escolhido";
   const safeContract = clean(contractId, 40) || "em analise";
   const safeVencimento = clean(vencimentoDay, 2) || "informado";
+  if (safeContract !== "em analise") {
+    await waitForContractTerm(safeContract);
+  }
   const termUrl = contractTermUrl(safeContract);
   const subject = "Cadastro recebido - SG Fibra";
   const text = [
@@ -1284,11 +1344,7 @@ async function handleContractTerm(req, res, url) {
     return true;
   }
   try {
-    const data = await sgpGetJson(`/api/contrato/termoaceite/${encodeURIComponent(contractId)}/`, {
-      app: SGP_APP,
-      token: SGP_TOKEN
-    }, "o termo do contrato");
-    const termHtml = typeof data?.html === "string" ? data.html : "";
+    const termHtml = await contractTermHtml(contractId);
     if (!termHtml.trim()) {
       send(res, 404, "Contrato ainda nao disponivel. Fale com a SG Fibra pelo WhatsApp.", { "Content-Type": "text/plain; charset=utf-8" });
       return true;
@@ -1471,7 +1527,7 @@ async function handleCadastro(req, res) {
           planLabel: selectedPlanLabel,
           vencimentoDay: selectedVencimentoDay
         });
-      }, 2);
+      }, 5, EMAIL_INITIAL_DELAY_MS);
     }
     const responsePayload = {
       ok: true,
