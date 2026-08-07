@@ -16,6 +16,12 @@ const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
 const ADMIN_USER = clean(process.env.ADMIN_USER || "Gustavo", 80);
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
 const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 91497-3216", 40);
+const CONTACT_EMAIL = clean(process.env.CONTACT_EMAIL || "sgfibra.contato@gmail.com", 180);
+const SITE_URL = clean(process.env.SITE_URL || "https://sgfibra.com.br", 220);
+const GOOGLE_REVIEW_URL = clean(
+  process.env.GOOGLE_REVIEW_URL || "https://www.google.com/search?q=SG+Fibra+avalia%C3%A7%C3%A3o+Google",
+  500
+);
 const sessions = new Map();
 const rates = new Map();
 const adminEvents = [];
@@ -1137,10 +1143,14 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     `Plano escolhido: ${safePlan}`,
     `Vencimento escolhido: dia ${safeVencimento}`,
     `Atendimento: ${CONTACT_WHATSAPP}`,
+    `Site: ${SITE_URL}`,
+    `E-mail: ${CONTACT_EMAIL}`,
     "",
     termUrl
       ? `Acesse o contrato para conferencia e assinatura: ${termUrl}`
       : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.",
+    "",
+    `Avalie nosso atendimento no Google: ${GOOGLE_REVIEW_URL}`,
     "",
     "Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.",
     "",
@@ -1160,11 +1170,18 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
         <p style="margin:0 0 8px"><strong>ID do contrato:</strong> ${escapeHtml(safeContract)}</p>
         <p style="margin:0 0 8px"><strong>Plano escolhido:</strong> ${escapeHtml(safePlan)}</p>
         <p style="margin:0 0 8px"><strong>Vencimento escolhido:</strong> dia ${escapeHtml(safeVencimento)}</p>
-        <p style="margin:0"><strong>Atendimento:</strong> ${escapeHtml(CONTACT_WHATSAPP)}</p>
+        <p style="margin:0 0 8px"><strong>Atendimento:</strong> ${escapeHtml(CONTACT_WHATSAPP)}</p>
+        <p style="margin:0 0 8px"><strong>Site:</strong> <a href="${escapeHtml(SITE_URL)}" style="color:#006cff">${escapeHtml(SITE_URL)}</a></p>
+        <p style="margin:0"><strong>E-mail:</strong> <a href="mailto:${escapeHtml(CONTACT_EMAIL)}" style="color:#006cff">${escapeHtml(CONTACT_EMAIL)}</a></p>
       </div>
       ${termUrl ? `<p>Confira seu contrato e finalize a assinatura pelo link abaixo:</p>
       <p style="margin:22px 0"><a href="${escapeHtml(termUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Ver e assinar contrato</a></p>
       <p style="font-size:13px;color:#607086;word-break:break-all">Se o botao nao abrir, copie este link: ${escapeHtml(termUrl)}</p>` : "<p>Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.</p>"}
+      <div style="background:#fff8df;border:1px solid #ffd166;border-radius:10px;margin:22px 0;padding:18px;text-align:center">
+        <p style="font-size:18px;font-weight:800;margin:0 0 8px;color:#102033">Gostou do atendimento?</p>
+        <p style="margin:0 0 16px;color:#30445f">Sua avaliacao no Google ajuda outros clientes a conhecerem a SG Fibra.</p>
+        <a href="${escapeHtml(GOOGLE_REVIEW_URL)}" style="background:#f5b400;border-radius:8px;color:#06172f;display:inline-block;font-weight:800;padding:13px 18px;text-decoration:none">Avaliar atendimento no Google</a>
+      </div>
       <p>Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.</p>
       <p>Atenciosamente,<br><strong>SG Fibra</strong></p>
       </div>
