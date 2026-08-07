@@ -218,7 +218,11 @@ async function waitForContractTerm(contractId) {
       await new Promise((resolve) => setTimeout(resolve, TERM_READY_INTERVAL_MS));
     }
   }
-  throw new Error(`Contrato ainda nao gerado pelo SGP. ${lastError}`);
+  addEvent("email", "contrato-ainda-nao-gerado", {
+    contrato: id,
+    error: lastError
+  });
+  return false;
 }
 
 function isDuplicateCpfError(error) {
