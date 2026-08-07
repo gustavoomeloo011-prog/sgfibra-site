@@ -14,7 +14,9 @@ Aplicacao separada para receber cadastro de cliente e enviar ao SGP sem expor `a
    - demais IDs de contrato, se for criar contrato automaticamente
    - `INSTALLATION_SERVICE_DESCRIPTION`, caso queira personalizar o texto enviado como detalhes do servico solicitado na instalacao
    - `ADMIN_USER` e `ADMIN_PASSWORD`, para liberar o painel operacional em `/admin`
+   - `CONTACT_WHATSAPP`, para aparecer no e-mail de boas-vindas
    - `CONFIRMATION_EMAIL_ENABLED=true` e `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`, caso queira enviar e-mail automatico de confirmacao ao cliente pelo Brevo
+   - `CONFIRMATION_EMAIL_ATTACH_TERM=true`, caso queira anexar o termo/contrato eletronico retornado pelo SGP
    - `SMTP_*`, caso prefira usar SMTP em vez da API do Brevo
 3. No Render, cadastre o dominio:
    - `cadastro.sgfibra.com.br`

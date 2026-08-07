@@ -15,6 +15,7 @@ const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === 
 const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
 const ADMIN_USER = clean(process.env.ADMIN_USER || "Gustavo", 80);
 const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
+const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 94721-1931", 40);
 const sessions = new Map();
 const rates = new Map();
 const adminEvents = [];
@@ -45,6 +46,7 @@ const contractConfig = {
 
 const emailConfig = {
   enabled: String(process.env.CONFIRMATION_EMAIL_ENABLED || "false") === "true",
+  attachContractTerm: String(process.env.CONFIRMATION_EMAIL_ATTACH_TERM || "true") === "true",
   brevoApiKey: String(process.env.BREVO_API_KEY || ""),
   brevoSenderEmail: clean(process.env.BREVO_SENDER_EMAIL || "", 180),
   brevoSenderName: clean(process.env.BREVO_SENDER_NAME || "SG Fibra", 80),
@@ -854,6 +856,28 @@ async function sgpForm(path, fields, method = "POST") {
   return sgpMultipart(path, fields, [], method, "a consulta");
 }
 
+async function sgpGetJson(path, params = {}, actionLabel = "a consulta") {
+  const url = new URL(`${SGP_URL.replace(/\/$/, "")}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+  });
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Accept": "application/json" },
+    signal: AbortSignal.timeout(20000)
+  });
+  const text = await response.text();
+  const data = parseJsonSafe(text);
+  if (!response.ok) {
+    const detail = clean(text || JSON.stringify(data), 500);
+    const error = new Error(`SGP recusou ${actionLabel} (${response.status}). ${detail}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
 function normalizeCpfText(value) {
   return onlyDigits(value).slice(-11);
 }
@@ -1074,15 +1098,22 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
   const safePlan = clean(planLabel, 100) || "plano escolhido";
   const safeContract = clean(contractId, 40) || "em analise";
   const safeVencimento = clean(vencimentoDay, 2) || "informado";
+  const attachments = await confirmationEmailAttachments(safeContract);
   const subject = "Cadastro recebido - SG Fibra";
   const text = [
     `Ola, ${safeName}.`,
     "",
-    "Recebemos seu cadastro na SG Fibra e vamos dar continuidade com a contratacao do novo ponto.",
+    "Seja bem-vindo(a) a SG Fibra.",
+    "Recebemos seu cadastro e vamos dar continuidade com a contratacao do novo ponto.",
     "",
     `ID do contrato: ${safeContract}`,
     `Plano escolhido: ${safePlan}`,
     `Vencimento escolhido: dia ${safeVencimento}`,
+    `Atendimento: ${CONTACT_WHATSAPP}`,
+    "",
+    attachments.length
+      ? "O termo/contrato eletronico segue anexado para sua conferencia."
+      : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp.",
     "",
     "Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.",
     "",
@@ -1093,19 +1124,21 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     <div style="font-family:Arial,sans-serif;color:#102033;line-height:1.5">
       <h2 style="color:#0066ff;margin:0 0 12px">Cadastro recebido - SG Fibra</h2>
       <p>Ola, <strong>${escapeHtml(safeName)}</strong>.</p>
-      <p>Recebemos seu cadastro na SG Fibra e vamos dar continuidade com a contratacao do novo ponto.</p>
+      <p>Seja bem-vindo(a) a SG Fibra. Recebemos seu cadastro e vamos dar continuidade com a contratacao do novo ponto.</p>
       <div style="background:#f4f8ff;border:1px solid #d7e6ff;border-radius:8px;margin:18px 0;padding:14px">
         <p style="margin:0 0 8px"><strong>ID do contrato:</strong> ${escapeHtml(safeContract)}</p>
         <p style="margin:0 0 8px"><strong>Plano escolhido:</strong> ${escapeHtml(safePlan)}</p>
-        <p style="margin:0"><strong>Vencimento escolhido:</strong> dia ${escapeHtml(safeVencimento)}</p>
+        <p style="margin:0 0 8px"><strong>Vencimento escolhido:</strong> dia ${escapeHtml(safeVencimento)}</p>
+        <p style="margin:0"><strong>Atendimento:</strong> ${escapeHtml(CONTACT_WHATSAPP)}</p>
       </div>
+      <p>${attachments.length ? "O termo/contrato eletronico segue anexado para sua conferencia." : "Caso precise do contrato completo, solicite ao atendimento pelo WhatsApp."}</p>
       <p>Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.</p>
       <p>Atenciosamente,<br><strong>SG Fibra</strong></p>
     </div>
   `;
 
   if (brevoEmailReady()) {
-    await sendBrevoEmail({ to, name: safeName, subject, text, html });
+    await sendBrevoEmail({ to, name: safeName, subject, text, html, attachments });
     return;
   }
 
@@ -1116,12 +1149,36 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
       replyTo: emailConfig.replyTo || undefined,
       subject,
       text,
-      html
+      html,
+      attachments
     });
   }
 }
 
-async function sendBrevoEmail({ to, name, subject, text, html }) {
+async function confirmationEmailAttachments(contractId) {
+  if (!emailConfig.attachContractTerm || !contractId || contractId === "em analise") return [];
+  try {
+    const data = await sgpGetJson(`/api/contrato/termoaceite/${encodeURIComponent(contractId)}/`, {
+      app: SGP_APP,
+      token: SGP_TOKEN
+    }, "o termo do contrato");
+    const termHtml = typeof data?.html === "string" ? data.html : "";
+    if (!termHtml.trim()) return [];
+    return [{
+      filename: `contrato-sg-fibra-${contractId}.html`,
+      content: Buffer.from(termHtml, "utf8"),
+      contentType: "text/html"
+    }];
+  } catch (error) {
+    addEvent("email", "termo-nao-anexado", {
+      contrato: contractId,
+      error: errorSummary(error)
+    });
+    return [];
+  }
+}
+
+async function sendBrevoEmail({ to, name, subject, text, html, attachments = [] }) {
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
@@ -1140,7 +1197,11 @@ async function sendBrevoEmail({ to, name, subject, text, html }) {
         : undefined,
       subject,
       textContent: text,
-      htmlContent: html
+      htmlContent: html,
+      attachment: attachments.map((attachment) => ({
+        name: attachment.filename,
+        content: Buffer.from(attachment.content).toString("base64")
+      }))
     }),
     signal: AbortSignal.timeout(12000)
   });
