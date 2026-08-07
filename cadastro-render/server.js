@@ -10,6 +10,7 @@ const SGP_APP = process.env.SGP_APP || "";
 const SGP_TOKEN = process.env.SGP_TOKEN || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const DAILY_LIMIT = Number(process.env.DAILY_LIMIT || 2);
+const SUBMISSION_LOCK_MS = Number(process.env.SUBMISSION_LOCK_MS || 5 * 60 * 1000);
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 const PRECADASTRO_ATIVAR = String(process.env.PRECADASTRO_ATIVAR || "true") === "true";
 const DEFAULT_MAP_LL = clean(process.env.DEFAULT_MAP_LL || "", 80);
@@ -28,6 +29,7 @@ const TERM_READY_ATTEMPTS = Number(process.env.TERM_READY_ATTEMPTS || 4);
 const TERM_READY_INTERVAL_MS = Number(process.env.TERM_READY_INTERVAL_MS || 15000);
 const sessions = new Map();
 const rates = new Map();
+const inFlightCadastros = new Map();
 const adminEvents = [];
 const queueJobs = [];
 let queueRunning = false;
@@ -908,6 +910,52 @@ function rateLimitKeys(req, data) {
   return identifiers.map(([scope, value]) => rateKey(scope, value));
 }
 
+function submissionLockKey(scope, value) {
+  return crypto.createHash("sha256").update(`cadastro-em-andamento|${scope}|${value}`).digest("hex");
+}
+
+function cadastroSubmissionLockKeys(cpf, phone) {
+  return [
+    ["cpf", onlyDigits(cpf)],
+    ["telefone", normalizePhone(phone)]
+  ].filter(([, value]) => value).map(([scope, value]) => submissionLockKey(scope, value));
+}
+
+function cleanupSubmissionLocks(now = Date.now()) {
+  for (const [key, expiresAt] of inFlightCadastros.entries()) {
+    if (expiresAt <= now) inFlightCadastros.delete(key);
+  }
+}
+
+function acquireCadastroSubmissionLock(cpf, phone) {
+  const now = Date.now();
+  cleanupSubmissionLocks(now);
+  const keys = cadastroSubmissionLockKeys(cpf, phone);
+  const activeUntil = keys
+    .map((key) => inFlightCadastros.get(key) || 0)
+    .filter((expiresAt) => expiresAt > now)
+    .sort((a, b) => b - a)[0];
+  if (activeUntil) {
+    return {
+      ok: false,
+      waitSeconds: Math.max(20, Math.ceil((activeUntil - now) / 1000))
+    };
+  }
+  const expiresAt = now + SUBMISSION_LOCK_MS;
+  keys.forEach((key) => inFlightCadastros.set(key, expiresAt));
+  return { ok: true, keys };
+}
+
+function releaseCadastroSubmissionLock(lock) {
+  if (!lock?.keys) return;
+  lock.keys.forEach((key) => inFlightCadastros.delete(key));
+}
+
+function shouldKeepSubmissionLockAfterError(error) {
+  const status = Number(error?.status || 0);
+  return !status || status >= 500;
+}
+
 function rateAllowed(keys) {
   if (keys.some(overLimit)) return false;
   return true;
@@ -1551,7 +1599,14 @@ async function handleCadastro(req, res) {
   if (contractConfig.modoAquisicao || contractConfig.modoAquisicao === 0) clientPayload.modoaquisicao = contractConfig.modoAquisicao;
   clientPayload.os_instalacao = contractConfig.osInstalacao;
 
+  let submissionLock = null;
   try {
+    submissionLock = acquireCadastroSubmissionLock(cpf, phone);
+    if (!submissionLock.ok) {
+      return json(res, 429, {
+        error: `Cadastro em processamento. Aguarde cerca de ${submissionLock.waitSeconds} segundos antes de tentar novamente.`
+      });
+    }
     const client = await sgpPost("/api/precadastro/F", clientPayload);
     const clientId = Number(client.id || client.precadastro_id || client.cliente_id || client?.precadastro?.id || client?.cliente?.id || 0);
     const directClienteId = Number(client.cliente_id || client?.cliente?.id || 0);
@@ -1600,6 +1655,7 @@ async function handleCadastro(req, res) {
     };
     json(res, 200, responsePayload);
   } catch (error) {
+    if (!shouldKeepSubmissionLockAfterError(error)) releaseCadastroSubmissionLock(submissionLock);
     addEvent("cadastro", "erro", { cpf: maskCpf(cpf), error: errorSummary(error) });
     if (isDuplicatePreCadastroError(error)) {
       const existing = await existingPreCadastroFor(cpf);
