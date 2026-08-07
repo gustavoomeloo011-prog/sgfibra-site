@@ -549,7 +549,7 @@ function htmlPage(csrf) {
     *{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#06172f,#0b2447 48%,#f4f8fc 48%);color:#102033;font-family:Arial,Helvetica,sans-serif;line-height:1.45}
     main{min-height:100vh;padding:30px 5%;display:grid;place-items:center}.wrap{width:min(100%,980px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 24px 60px rgba(7,27,54,.22);overflow:hidden}
     header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
-    form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}
+    form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}.uppercase-input{text-transform:uppercase}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
     .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;display:grid;gap:12px;padding:16px}.documents p{color:#5f3a00;margin:0}.documents input[type=file]{background:#fff;border-style:dashed;padding:10px}
     .success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.success-modal.is-open{display:flex}
@@ -570,7 +570,7 @@ function htmlPage(csrf) {
       <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
       <input class="hidden" name="website" tabindex="-1" autocomplete="off">
       <div class="grid">
-        <label>Nome completo<input name="nome" autocomplete="name" required></label>
+        <label>Nome completo<input name="nome" autocomplete="name" autocapitalize="characters" class="uppercase-input" required></label>
         <label>CPF<input name="cpfcnpj" inputmode="numeric" autocomplete="off" required></label>
         <label>RG<input name="rg" autocomplete="off" required></label>
         <label>Data de nascimento<input name="datanasc" inputmode="numeric" autocomplete="bday" placeholder="DD/MM/AAAA" maxlength="10" required></label>
@@ -644,6 +644,9 @@ function htmlPage(csrf) {
     if (cleanValue.length <= 5) return cleanValue;
     return cleanValue.slice(0, 5) + "-" + cleanValue.slice(5);
   };
+  form.nome.addEventListener("input", () => {
+    form.nome.value = form.nome.value.toLocaleUpperCase("pt-BR");
+  });
   form.cpfcnpj.addEventListener("input", () => {
     form.cpfcnpj.value = formatCpf(form.cpfcnpj.value);
   });
@@ -1367,7 +1370,7 @@ async function handleCadastro(req, res) {
   const selectedPlanLabel = planLabelFor(data.plan);
   const mapLl = await geocodeAddress(address);
   const serviceDescription = installationServiceDescription({
-    name: data.nome,
+    name: clean(data.nome, 120).toLocaleUpperCase("pt-BR"),
     cpf: formattedCpf,
     phone,
     email: data.email,
@@ -1391,7 +1394,7 @@ async function handleCadastro(req, res) {
   const clientPayload = {
     app: SGP_APP,
     token: SGP_TOKEN,
-    nome: clean(data.nome, 120),
+    nome: clean(data.nome, 120).toLocaleUpperCase("pt-BR"),
     cpfcnpj: formattedCpf,
     rg: clean(data.rg, 30),
     rg_emissor: "SSP",
@@ -1463,7 +1466,7 @@ async function handleCadastro(req, res) {
       enqueueJob("email", `Contrato ${contractId || "-"} - confirmacao para ${clean(data.email, 150)}`, async () => {
         await sendConfirmationEmail({
           to: clean(data.email, 150),
-          name: clean(data.nome, 120),
+          name: clean(data.nome, 120).toLocaleUpperCase("pt-BR"),
           contractId: String(contractId || clientId || ""),
           planLabel: selectedPlanLabel,
           vencimentoDay: selectedVencimentoDay
