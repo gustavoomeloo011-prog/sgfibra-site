@@ -144,6 +144,15 @@ function vencimentoDayFor(value) {
   return vencimentoIdByDay[day] ? day : 0;
 }
 
+function availabilityLabelFor(value) {
+  const options = {
+    manha: "Manha das 09h as 12h",
+    tarde: "Tarde das 12h as 17h",
+    total: "Disponibilidade total"
+  };
+  return options[clean(value, 20).toLowerCase()] || "";
+}
+
 function clean(value, max = 180) {
   return String(value || "").replace(/<[^>]*>/g, "").trim().slice(0, max);
 }
@@ -655,6 +664,7 @@ function htmlPage(csrf) {
         <label>Celular/WhatsApp<input name="celular" type="tel" autocomplete="tel" required></label>
         <label class="full">E-mail<input name="email" type="email" autocomplete="email" required></label>
         <label>Vencimento<select name="vencimento" required><option value="">Selecione</option><option value="5">Dia 5</option><option value="10">Dia 10</option><option value="20">Dia 20</option><option value="30">Dia 30</option></select></label>
+        <label>Disponibilidade para instalaÃ§Ã£o<select name="disponibilidade" required><option value="">Selecione</option><option value="manha">ManhÃ£ das 09h - 12h</option><option value="tarde">Tarde das 12h - 17h</option><option value="total">Total</option></select></label>
         <label>CEP<input name="cep" inputmode="numeric" autocomplete="postal-code" required></label>
         <label>Numero<input name="numero" required></label>
         <label class="full">Rua<input name="logradouro" required></label>
@@ -1252,7 +1262,7 @@ async function attachClientDocuments(clienteId, uploads) {
   return { sent, total: uploads.length };
 }
 
-function installationServiceDescription({ name, cpf, phone, email, rg, planLabel, vencimentoDay, address }) {
+function installationServiceDescription({ name, cpf, phone, email, rg, planLabel, vencimentoDay, availabilityLabel, address }) {
   const values = {
     nome: clean(name, 120),
     cpf,
@@ -1261,18 +1271,30 @@ function installationServiceDescription({ name, cpf, phone, email, rg, planLabel
     rg: clean(rg, 30),
     plano: clean(planLabel, 100),
     vencimento: String(vencimentoDay),
+    disponibilidade: clean(availabilityLabel, 80),
     endereco: `${address.logradouro}, ${address.numero}${address.complemento ? `, ${address.complemento}` : ""} - ${address.bairro}, ${address.cidade}/${address.uf}`,
     cep: address.cep,
     referencia: clean(address.pontoreferencia, 180)
   };
   if (installationDescriptionTemplate) return fillTemplate(installationDescriptionTemplate, values);
   return [
-    `Plano escolhido: ${values.plano}`,
-    "Contrato assinado:",
-    "Disponibilidade:",
-    `Endereco completo: ${values.endereco}`,
-    `Cep: ${values.cep}`,
-    `Ponto de referencia: ${values.referencia}`
+    "📌 Novo cadastro recebido pelo site SG Fibra",
+    "",
+    `📶 Plano escolhido: ${values.plano}`,
+    `🗓️ Vencimento escolhido: dia ${values.vencimento}`,
+    `⏰ Disponibilidade para instalacao: ${values.disponibilidade}`,
+    "",
+    `👤 Cliente: ${values.nome}`,
+    `🪪 CPF: ${values.cpf}`,
+    `🪪 RG: ${values.rg}`,
+    `📱 WhatsApp: ${values.telefone}`,
+    `📧 E-mail: ${values.email}`,
+    "",
+    `🏠 Endereco completo: ${values.endereco}`,
+    `📮 CEP: ${values.cep}`,
+    `📍 Ponto de referencia: ${values.referencia || "Nao informado"}`,
+    "",
+    "✅ Conferir disponibilidade, documentos e seguir com a ativacao/instalacao."
   ].join("\n");
 }
 
@@ -1498,7 +1520,7 @@ async function handleCadastro(req, res) {
   if (session.csrf !== String(data.csrf || "")) return json(res, 403, { error: "Sessao expirada. Atualize a pagina." });
   if (data.website) return json(res, 400, { error: "Cadastro invalido." });
 
-  const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "vencimento", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
+  const required = ["nome", "cpfcnpj", "rg", "datanasc", "sexo", "estadocivil", "celular", "email", "vencimento", "disponibilidade", "cep", "logradouro", "numero", "bairro", "cidade", "uf", "plan", "consent"];
   if (required.some((field) => !data[field])) return json(res, 422, { error: "Preencha todos os campos obrigatorios." });
   const cpf = onlyDigits(data.cpfcnpj);
   const formattedCpf = formatCpfDisplay(cpf);
@@ -1511,6 +1533,8 @@ async function handleCadastro(req, res) {
   if (!/^\d{2}9\d{8}$/.test(phone)) return json(res, 422, { error: "Informe um celular valido com DDD." });
   const selectedVencimentoDay = vencimentoDayFor(data.vencimento);
   if (!selectedVencimentoDay) return json(res, 422, { error: "Escolha uma data de vencimento valida." });
+  const selectedAvailabilityLabel = availabilityLabelFor(data.disponibilidade);
+  if (!selectedAvailabilityLabel) return json(res, 422, { error: "Escolha a disponibilidade para instalacao." });
   const documents = documentUploads(files);
   if (documents.errors.length) return json(res, 422, { error: documents.errors.join(" ") });
   const dailyLimitKeys = rateLimitKeys(req, data);
@@ -1541,13 +1565,15 @@ async function handleCadastro(req, res) {
     rg: data.rg,
     planLabel: selectedPlanLabel,
     vencimentoDay: selectedVencimentoDay,
+    availabilityLabel: selectedAvailabilityLabel,
     address
   });
   const observation = [
     "Pre-cadastro realizado pelo formulario publico da SG Fibra.",
     `Plano escolhido: ${selectedPlanLabel}${selectedPlanId ? ` (ID SGP: ${selectedPlanId})` : ""}.`,
-    `Contrato automatico: PPPoE login ${cpf}, senha sgfibra, aquisicao comodato. CPF informado: ${formattedCpf}.`,
+    `PPPoE: login ${cpf}, senha sgfibra, aquisicao comodato. CPF informado: ${formattedCpf}.`,
     `Vencimento escolhido: dia ${selectedVencimentoDay}.`,
+    `Disponibilidade para instalacao: ${selectedAvailabilityLabel}.`,
     `RG: ${clean(data.rg, 30)}.`,
     `WhatsApp: ${phone}.`,
     `E-mail: ${clean(data.email, 150)}.`,
