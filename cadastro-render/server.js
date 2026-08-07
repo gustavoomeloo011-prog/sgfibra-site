@@ -19,7 +19,7 @@ const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 91497-3216"
 const CONTACT_EMAIL = clean(process.env.CONTACT_EMAIL || "sgfibra.contato@gmail.com", 180);
 const SITE_URL = clean(process.env.SITE_URL || "https://sgfibra.com.br", 220);
 const GOOGLE_REVIEW_URL = clean(
-  process.env.GOOGLE_REVIEW_URL || "https://www.google.com/search?q=SG+Fibra+avalia%C3%A7%C3%A3o+Google",
+  process.env.GOOGLE_REVIEW_URL || "https://share.google/xzOgr6uyXR8uDLQsg",
   500
 );
 const sessions = new Map();
