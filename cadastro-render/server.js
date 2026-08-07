@@ -162,6 +162,13 @@ function errorSummary(error) {
   return clean(error?.message || error, 500);
 }
 
+function normalizedErrorSummary(error) {
+  return errorSummary(error)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function fillTemplate(template, values) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => values[key] || "");
 }
@@ -226,7 +233,13 @@ async function waitForContractTerm(contractId) {
 }
 
 function isDuplicateCpfError(error) {
-  return /j[aá]\s*existe.*cpf|cpf.*j[aá]\s*existe|cliente.*cpf informado/i.test(errorSummary(error));
+  const message = normalizedErrorSummary(error);
+  return /ja\s*existe.*cpf|cpf.*ja\s*existe|cliente.*cpf informado/i.test(message);
+}
+
+function isDuplicatePreCadastroError(error) {
+  const message = normalizedErrorSummary(error);
+  return /ja\s*existe.*pre-?cadastro.*cpf|pre-?cadastro.*cpf informado/i.test(message);
 }
 
 function onlyDigits(value) {
@@ -1027,6 +1040,49 @@ async function clienteIdFor(cpf, contractId) {
   return 0;
 }
 
+function isoDateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+async function existingPreCadastroFor(cpf) {
+  try {
+    const now = new Date();
+    const start = new Date(now);
+    start.setFullYear(start.getFullYear() - 2);
+    const end = new Date(now);
+    end.setFullYear(end.getFullYear() + 1);
+    const data = await sgpForm("/api/precadastro/list", {
+      app: SGP_APP,
+      token: SGP_TOKEN,
+      data_cadastro_inicial: isoDateOnly(start),
+      data_cadastro_final: isoDateOnly(end),
+      cpfcnpj: cpf,
+      limit: 1000
+    });
+    const items = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
+    const target = normalizeCpfText(cpf);
+    return items.find((item) => normalizeCpfText(item.cliente_cpfcnpj || item.cpfcnpj || item.cpf || "") === target) || null;
+  } catch (error) {
+    addEvent("precadastro", "consulta-erro", {
+      cpf: maskCpf(cpf),
+      error: errorSummary(error)
+    });
+    return null;
+  }
+}
+
+function duplicatePreCadastroMessage(item) {
+  if (!item) return "Ja existe um pre-cadastro com este CPF no SGP. Verifique a tela de pre-cadastros antes de tentar novamente.";
+  const parts = [
+    "Ja existe um pre-cadastro com este CPF no SGP",
+    item.id ? `ID ${clean(item.id, 20)}` : "",
+    item.cliente ? `cliente ${clean(item.cliente, 80)}` : "",
+    item.plano ? `plano ${clean(item.plano, 80)}` : "",
+    item.data ? `criado em ${clean(item.data, 40)}` : ""
+  ].filter(Boolean);
+  return `${parts.join(", ")}. Localize esse pre-cadastro no SGP para ativar, excluir ou ajustar antes de tentar novamente.`;
+}
+
 function osIdsFromList(data, contractId) {
   const target = String(contractId || "");
   return collectObjects(data)
@@ -1545,6 +1601,10 @@ async function handleCadastro(req, res) {
     json(res, 200, responsePayload);
   } catch (error) {
     addEvent("cadastro", "erro", { cpf: maskCpf(cpf), error: errorSummary(error) });
+    if (isDuplicatePreCadastroError(error)) {
+      const existing = await existingPreCadastroFor(cpf);
+      return json(res, 409, { error: duplicatePreCadastroMessage(existing) });
+    }
     if (isDuplicateCpfError(error)) {
       return json(res, 409, {
         error: "Este CPF ja possui cadastro na SG Fibra. Fale com um atendente para localizar ou atualizar o cadastro."
