@@ -708,9 +708,9 @@ function htmlPage(csrf) {
 <div class="success-modal" id="success-modal" aria-hidden="true">
   <div class="success-card">
     <img src="/logo.png" alt="SG Fibra">
-    <strong id="success-title">Cadastro concluido</strong>
+    <strong id="success-title">Dados enviados com sucesso</strong>
     <span class="protocol" id="success-protocol">ID do contrato: -</span>
-    <p id="success-help">Tire um print desta tela e envie para um atendente no WhatsApp para continuar o atendimento.</p>
+    <p id="success-help">Confira seu e-mail para receber o contrato digital. Ele precisa ser assinado antes da chegada do tecnico.</p>
     <button class="success-close" type="button" id="success-close">Fechar</button>
   </div>
 </div>
@@ -1490,10 +1490,10 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
       ${signatureUrl ? `<p>Confira seu contrato e finalize a assinatura eletronica pelo link abaixo:</p>
       <p style="margin:22px 0;text-align:center"><a href="${escapeHtml(signatureUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Assinar contrato</a></p>
       <p style="font-size:13px;color:#607086;word-break:break-all">Se o botao nao abrir, copie este link: ${escapeHtml(signatureUrl)}</p>` : "<p>O link correto da assinatura eletronica do contrato sera enviado pela equipe SG Fibra assim que estiver disponivel.</p>"}
-      <div style="background:#fff8df;border:1px solid #ffd166;border-radius:10px;margin:22px 0;padding:18px;text-align:center">
-        <p style="font-size:18px;font-weight:800;margin:0 0 8px;color:#102033">Gostou do atendimento?</p>
-        <p style="margin:0 0 16px;color:#30445f">Sua avaliacao no Google ajuda outros clientes a conhecerem a SG Fibra.</p>
-        <a href="${escapeHtml(GOOGLE_REVIEW_URL)}" style="background:#f5b400;border-radius:8px;color:#06172f;display:inline-block;font-weight:800;padding:13px 18px;text-decoration:none">Avaliar atendimento no Google</a>
+      <div style="background:#fff8df;border:1px solid #ffd166;border-radius:10px;margin:18px 0;padding:14px;text-align:center">
+        <p style="font-size:16px;font-weight:800;margin:0 0 6px;color:#102033">Avalie a SG Fibra no Google</p>
+        <p style="font-size:13px;margin:0 0 12px;color:#30445f">Sua avaliacao ajuda outros clientes.</p>
+        <a href="${escapeHtml(GOOGLE_REVIEW_URL)}" style="background:#f5b400;border-radius:8px;color:#06172f;display:inline-block;font-size:14px;font-weight:800;max-width:220px;padding:10px 14px;text-decoration:none;width:auto">Avaliar no Google</a>
       </div>
       <p>Se ainda nao enviou o print da tela de conclusao para o atendimento, envie pelo WhatsApp para facilitar a localizacao do cadastro.</p>
       <p>Atenciosamente,<br><strong>SG Fibra</strong></p>
@@ -1793,11 +1793,13 @@ async function handleCadastro(req, res) {
     const responsePayload = {
       ok: true,
       message: contractId
-        ? "Cadastro e contrato enviados com sucesso."
-        : "Cadastro feito com sucesso. A equipe SG Fibra vai continuar o atendimento.",
+        ? "Dados enviados com sucesso."
+        : "Dados enviados com sucesso.",
       protocolLabel: contractId ? "ID do contrato" : "ID do pre-cadastro",
       protocol: String(contractId || clientId || ""),
-      documentMessage: "Documentos recebidos e enviados para processamento seguro. A equipe acompanha pelo painel interno."
+      documentMessage: contractId
+        ? "Verifique seu e-mail para receber o contrato digital. Ele precisa ser assinado antes da chegada do tecnico."
+        : "Verifique seu e-mail e aguarde o contato da SG Fibra para continuar o atendimento."
     };
     json(res, 200, responsePayload);
   } catch (error) {
