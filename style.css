@@ -1032,33 +1032,19 @@ a{
 .tv-logo-row{
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
-  margin:18px 0 2px;
+  gap:10px;
+  margin:18px 0 4px;
 }
 
-.tv-logo{
-  align-items:center;
+.tv-logo-img{
+  background:#05070b;
+  border:1px solid rgba(7,27,54,0.1);
   border-radius:8px;
-  color:var(--white);
-  display:inline-flex;
-  font-size:13px;
-  font-weight:900;
-  justify-content:center;
-  min-height:38px;
-  padding:9px 12px;
-  text-align:center;
-}
-
-.tv-logo.globoplay{
-  background:linear-gradient(135deg,#ff6b00,#e0008a,#0057ff);
-}
-
-.tv-logo.telecine{
-  background:linear-gradient(135deg,#101828,#3b4b66);
-}
-
-.tv-logo.premiere{
-  background:linear-gradient(135deg,#00a859,#006b3f);
+  box-shadow:0 8px 18px rgba(7,27,54,0.08);
+  height:38px;
+  object-fit:contain;
+  padding:5px 8px;
+  width:92px;
 }
 
 .addons-grid{
@@ -2331,6 +2317,15 @@ a{
   .showcase-center small{
     font-size:12px;
     max-width:210px;
+  }
+
+  .tv-logo-row{
+    gap:8px;
+  }
+
+  .tv-logo-img{
+    height:34px;
+    width:calc(50% - 4px);
   }
 
   .email-spotlight button{
