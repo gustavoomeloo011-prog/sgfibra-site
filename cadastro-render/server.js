@@ -30,6 +30,8 @@ const EMAIL_INITIAL_DELAY_MS = Number(process.env.EMAIL_INITIAL_DELAY_MS || 4500
 const EMAIL_RETRY_DELAY_MS = Number(process.env.EMAIL_RETRY_DELAY_MS || 30000);
 const TERM_READY_ATTEMPTS = Number(process.env.TERM_READY_ATTEMPTS || 4);
 const TERM_READY_INTERVAL_MS = Number(process.env.TERM_READY_INTERVAL_MS || 15000);
+const KEEPALIVE_ENABLED = String(process.env.KEEPALIVE_ENABLED || "true") === "true";
+const KEEPALIVE_INTERVAL_MS = Number(process.env.KEEPALIVE_INTERVAL_MS || 10 * 60 * 1000);
 const PUBLIC_HOST = (() => {
   try {
     return (PUBLIC_BASE_URL ? new URL(PUBLIC_BASE_URL).hostname : "cadastro.sgfibra.com.br").toLowerCase();
@@ -38,6 +40,7 @@ const PUBLIC_HOST = (() => {
   }
 })();
 const ALLOW_RENDER_HOST = String(process.env.ALLOW_RENDER_HOST || "false") === "true";
+const KEEPALIVE_URL = clean(process.env.KEEPALIVE_URL || `${PUBLIC_BASE_URL || "https://cadastro.sgfibra.com.br"}/health`, 300);
 const sessions = new Map();
 const rates = new Map();
 const inFlightCadastros = new Map();
@@ -2013,4 +2016,23 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Cadastro SG Fibra rodando na porta ${PORT}`);
+  startKeepAlive();
 });
+
+function startKeepAlive() {
+  if (!KEEPALIVE_ENABLED || !KEEPALIVE_URL || KEEPALIVE_INTERVAL_MS < 60000) return;
+  const ping = async () => {
+    try {
+      const response = await fetch(KEEPALIVE_URL, {
+        headers: { "User-Agent": "SGFibraCadastro-KeepAlive/1.0" },
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!response.ok) console.warn(`[SG keepalive] status ${response.status}`);
+    } catch (error) {
+      console.warn(`[SG keepalive] ${errorSummary(error)}`);
+    }
+  };
+  setInterval(ping, KEEPALIVE_INTERVAL_MS).unref?.();
+  setTimeout(ping, 30000).unref?.();
+  console.log(`Keepalive ativo: ${KEEPALIVE_URL} a cada ${Math.round(KEEPALIVE_INTERVAL_MS / 60000)} min`);
+}
