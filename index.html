@@ -19,7 +19,7 @@
     }
   </script>
   <link rel="icon" href="imagens/logo.png">
-  <link rel="stylesheet" href="style.css?v=20260812-4">
+  <link rel="stylesheet" href="style.css?v=20260812-5">
 </head>
 
 <body>
@@ -91,7 +91,10 @@
       </div>
 
       <div class="hero-card" aria-label="Marca SG Fibra">
-        <img src="imagens/logo-hero.png" alt="SG Fibra">
+        <picture>
+          <source media="(max-width: 860px)" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+          <img src="imagens/logo-hero.png" alt="SG Fibra">
+        </picture>
       </div>
     </section>
 
@@ -349,54 +352,6 @@
       </a>
     </section>
 
-    <section class="app-section" id="app">
-      <div class="app-content">
-        <span class="eyebrow">App Android</span>
-        <h2>Baixe o app da SG Fibra.</h2>
-        <p>Instale o aplicativo no seu celular Android para acessar os recursos da SG Fibra com mais praticidade.</p>
-        <small>Veja o passo a passo antes de baixar e instalar com segurança.</small>
-      </div>
-
-      <div class="app-download-card">
-        <img src="imagens/logo-transparent.png" alt="SG Fibra">
-        <div>
-          <strong>Aplicativo Android</strong>
-          <span>Arquivo APK para instalação manual.</span>
-        </div>
-        <a class="btn btn-primary" href="app.html">Instalar o app</a>
-      </div>
-    </section>
-
-    <section class="app-faq-section" id="faq">
-      <div class="section-heading">
-        <span class="eyebrow">FAQ</span>
-        <h2>Dúvidas frequentes.</h2>
-        <p>Respostas rápidas sobre contratação, instalação, fatura e troca de plano.</p>
-      </div>
-
-      <div class="faq-question-grid">
-        <article id="faq-fidelidade">
-          <strong>Tem fidelidade?</strong>
-          <p>Sim. O padrão de fidelidade dos planos é de 12 meses.</p>
-        </article>
-
-        <article id="faq-instalacao">
-          <strong>Quanto tempo leva para instalar?</strong>
-          <p>A instalação pode ocorrer em até 3 dias após a solicitação, com média de atendimento no mesmo dia ou no dia seguinte.</p>
-        </article>
-
-        <article id="faq-fatura">
-          <strong>Como recebo a fatura?</strong>
-          <p>Você pode receber e acessar sua fatura por e-mail, aplicativo, central do assinante e WhatsApp.</p>
-        </article>
-
-        <article id="faq-troca">
-          <strong>Posso trocar de plano depois?</strong>
-          <p>Sim. Caso a troca seja de plano de internet, ocorre a renovação da fidelidade.</p>
-        </article>
-      </div>
-    </section>
-
     <section class="location-section" id="localizacao">
       <div class="section-heading">
         <span class="eyebrow">Localização</span>
@@ -423,6 +378,35 @@
           loading="lazy"
           referrerpolicy="no-referrer-when-downgrade">
         </iframe>
+      </div>
+    </section>
+
+    <section class="app-faq-section" id="faq">
+      <div class="section-heading compact-heading">
+        <span class="eyebrow">FAQ</span>
+        <h2>Dúvidas frequentes.</h2>
+      </div>
+
+      <div class="faq-question-grid compact-faq">
+        <details id="faq-fidelidade">
+          <summary>Tem fidelidade?</summary>
+          <p>Sim. O padrão de fidelidade dos planos é de 12 meses.</p>
+        </details>
+
+        <details id="faq-instalacao">
+          <summary>Quanto tempo leva para instalar?</summary>
+          <p>A instalação pode ocorrer em até 3 dias após a solicitação, com média de atendimento no mesmo dia ou no dia seguinte.</p>
+        </details>
+
+        <details id="faq-fatura">
+          <summary>Como recebo a fatura?</summary>
+          <p>Você pode receber e acessar sua fatura por e-mail, aplicativo, central do assinante e WhatsApp.</p>
+        </details>
+
+        <details id="faq-troca">
+          <summary>Posso trocar de plano depois?</summary>
+          <p>Sim. Caso a troca seja de plano de internet, ocorre a renovação da fidelidade.</p>
+        </details>
       </div>
     </section>
   </main>
@@ -460,7 +444,7 @@
     <a class="float-link instagram" href="https://www.instagram.com/sgfibra.oficial/" target="_blank" rel="noopener" aria-label="Abrir Instagram">IG</a>
   </div>
 
-  <script src="script.js?v=20260812-2"></script>
+  <script src="script.js?v=20260812-5"></script>
 </body>
 
 </html>

@@ -458,7 +458,12 @@ a{
   z-index:0;
 }
 
-.hero-card > img{
+.hero-card picture{
+  position:relative;
+  z-index:1;
+}
+
+.hero-card img{
   filter:
     drop-shadow(0 0 16px rgba(255,214,64,0.72))
     drop-shadow(0 0 42px rgba(255,179,26,0.42))
@@ -1398,7 +1403,11 @@ a{
 
 .app-faq-section{
   background:var(--soft);
-  padding:82px 6%;
+  padding:56px 6%;
+}
+
+.compact-heading{
+  margin-bottom:22px;
 }
 
 .faq-link-grid{
@@ -1411,10 +1420,10 @@ a{
 
 .faq-question-grid{
   display:grid;
-  gap:18px;
-  grid-template-columns:repeat(2,1fr);
-  margin:22px auto 0;
-  max-width:980px;
+  gap:10px;
+  grid-template-columns:1fr;
+  margin:0 auto;
+  max-width:780px;
 }
 
 .faq-link-grid a{
@@ -1446,24 +1455,44 @@ a{
   display:block;
 }
 
-.faq-question-grid article{
+.faq-question-grid details{
   background:var(--white);
   border:1px solid var(--line);
   border-radius:8px;
   box-shadow:0 12px 28px rgba(7,27,54,0.06);
-  padding:26px;
+  overflow:hidden;
 }
 
-.faq-question-grid strong{
+.faq-question-grid summary{
   color:var(--navy);
-  display:block;
-  font-size:20px;
-  margin-bottom:8px;
+  cursor:pointer;
+  display:flex;
+  font-size:17px;
+  font-weight:900;
+  justify-content:space-between;
+  list-style:none;
+  padding:16px 18px;
+}
+
+.faq-question-grid summary::-webkit-details-marker{
+  display:none;
+}
+
+.faq-question-grid summary::after{
+  color:var(--blue);
+  content:"+";
+  font-size:22px;
+  line-height:1;
+}
+
+.faq-question-grid details[open] summary::after{
+  content:"-";
 }
 
 .faq-question-grid p{
   color:var(--muted);
   font-size:15px;
+  padding:0 18px 18px;
 }
 
 .install-guide{
@@ -1933,7 +1962,7 @@ a{
   transform:translateX(0);
 }
 
-.hero-card > img.is-visible,
+.hero-card img.is-visible,
 .plans-page-hero img.is-visible,
 .app-phone-card img.is-visible{
   animation:softFloat 4.8s ease-in-out 0.5s infinite;
@@ -2070,13 +2099,7 @@ a{
   }
 
   .hero-card{
-    min-height:auto;
-  }
-
-  .hero-card > img{
-    margin:auto;
-    max-height:300px;
-    width:min(100%,430px);
+    display:none;
   }
 
   .trust-strip,
@@ -2180,10 +2203,6 @@ a{
     flex-direction:column;
   }
 
-  .app-section{
-    grid-template-columns:1fr;
-  }
-
   .app-hero{
     grid-template-columns:1fr;
     padding:54px 6%;
@@ -2236,7 +2255,6 @@ a{
   .install-guide,
   .plans-section,
   .location-section,
-  .app-section,
   .coverage-section{
     padding-left:5%;
     padding-right:5%;
@@ -2411,7 +2429,7 @@ a{
     transition:none;
   }
 
-  .hero-card > img.is-visible,
+  .hero-card img.is-visible,
   .plans-page-hero img.is-visible,
   .app-phone-card img.is-visible,
   .hero::before,
