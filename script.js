@@ -150,16 +150,11 @@ document.querySelectorAll(".compact-plan-card").forEach((card) => {
       return;
     }
 
-    const track = card.closest(".plans-grid");
-    track?.querySelectorAll(".compact-plan-card").forEach((item) => {
-      if (item !== card) item.classList.remove("is-expanded");
-    });
     card.classList.toggle("is-expanded");
-    window.dispatchEvent(new Event("resize"));
   });
 });
 
-const carouselTracks = document.querySelectorAll(".plans-grid:not(.plans-static-grid)");
+const carouselTracks = document.querySelectorAll(".combo-grid");
 
 carouselTracks.forEach((track) => {
   const cards = Array.from(track.querySelectorAll(".plan-card"));

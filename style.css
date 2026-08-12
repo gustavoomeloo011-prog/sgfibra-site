@@ -1019,37 +1019,50 @@ a{
   margin:18px 0 4px;
 }
 
-.tv-logo-img{
-  background:transparent;
-  border:0;
-  border-radius:0;
-  box-shadow:none;
-  height:34px;
-  object-fit:contain;
-  padding:0;
-  width:86px;
+.tv-logo{
+  align-items:center;
+  background:#05070b;
+  border-radius:8px;
+  color:var(--white);
+  display:inline-flex;
+  font-size:12px;
+  font-weight:900;
+  justify-content:center;
+  min-height:34px;
+  padding:8px 10px;
+  text-align:center;
 }
 
-.plans-grid.is-carousel .compact-plan-card{
+.tv-logo.globoplay{
+  color:#ff0040;
+}
+
+.tv-logo.telecine{
+  color:#ffffff;
+}
+
+.tv-logo.premiere{
+  color:#55c878;
+}
+
+.tv-logo.sportv{
+  color:#ffffff;
+}
+
+.compact-plan-card{
   cursor:pointer;
-  min-height:360px;
+  min-height:0;
 }
 
-.plans-grid.is-carousel:has(.compact-plan-card:hover),
-.plans-grid.is-carousel:has(.compact-plan-card:focus-within),
-.plans-grid.is-carousel:has(.compact-plan-card.is-expanded){
-  min-height:max(var(--carousel-height,620px),820px);
-}
-
-.plans-grid.is-carousel .compact-plan-card .plan-media,
-.plans-grid.is-carousel .compact-plan-card .plan-kicker,
-.plans-grid.is-carousel .compact-plan-card .plan-speed,
-.plans-grid.is-carousel .compact-plan-card h3,
-.plans-grid.is-carousel .compact-plan-card .plan-fit,
-.plans-grid.is-carousel .compact-plan-card .plan-service-row,
-.plans-grid.is-carousel .compact-plan-card ul,
-.plans-grid.is-carousel .compact-plan-card .plan-price,
-.plans-grid.is-carousel .compact-plan-card .btn-plan{
+.compact-plan-card .plan-media,
+.compact-plan-card .plan-kicker,
+.compact-plan-card .plan-speed,
+.compact-plan-card h3,
+.compact-plan-card .plan-fit,
+.compact-plan-card .plan-service-row,
+.compact-plan-card ul,
+.compact-plan-card .plan-price,
+.compact-plan-card .btn-plan{
   opacity:0;
   transform:translateY(10px);
   transition:opacity 0.22s ease,transform 0.22s ease,max-height 0.22s ease,margin 0.22s ease;
@@ -1059,75 +1072,70 @@ a{
   pointer-events:none;
 }
 
-.plans-grid.is-carousel .compact-plan-card .compact-plan-head{
+.compact-plan-card .compact-plan-head{
   display:grid;
   gap:7px;
-  margin:24px 0 16px;
+  margin:4px 0 14px;
   text-align:center;
 }
 
-.plans-grid.is-carousel .compact-plan-card .compact-plan-head strong{
+.compact-plan-card .compact-plan-head strong{
   color:var(--navy);
-  font-size:clamp(24px,5vw,34px);
+  font-size:clamp(22px,4vw,30px);
   line-height:1.05;
   text-transform:uppercase;
 }
 
-.plans-grid.is-carousel .compact-plan-card .compact-plan-head small{
+.compact-plan-card .compact-plan-head small{
   color:var(--muted);
   font-size:13px;
   font-weight:800;
 }
 
-.plans-grid.is-carousel .compact-plan-card .tv-logo-row{
+.compact-plan-card .tv-logo-row{
   justify-content:center;
-  margin:18px 0 10px;
+  margin:14px 0 6px;
 }
 
-.plans-grid.is-carousel .compact-plan-card .tv-logo-img{
-  height:34px;
-  width:92px;
-}
-
-.plans-grid.is-carousel .compact-plan-card:hover,
-.plans-grid.is-carousel .compact-plan-card:focus-within,
-.plans-grid.is-carousel .compact-plan-card.is-expanded{
+.compact-plan-card:hover,
+.compact-plan-card:focus-within,
+.compact-plan-card.is-expanded{
   cursor:auto;
 }
 
-.plans-grid.is-carousel .compact-plan-card:hover .compact-plan-head,
-.plans-grid.is-carousel .compact-plan-card:focus-within .compact-plan-head,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .compact-plan-head{
+.compact-plan-card:hover .compact-plan-head,
+.compact-plan-card:focus-within .compact-plan-head,
+.compact-plan-card.is-expanded .compact-plan-head{
   display:none;
 }
 
-.plans-grid.is-carousel .compact-plan-card:hover .plan-media,
-.plans-grid.is-carousel .compact-plan-card:hover .plan-kicker,
-.plans-grid.is-carousel .compact-plan-card:hover .plan-speed,
-.plans-grid.is-carousel .compact-plan-card:hover h3,
-.plans-grid.is-carousel .compact-plan-card:hover .plan-fit,
-.plans-grid.is-carousel .compact-plan-card:hover .plan-service-row,
-.plans-grid.is-carousel .compact-plan-card:hover ul,
-.plans-grid.is-carousel .compact-plan-card:hover .plan-price,
-.plans-grid.is-carousel .compact-plan-card:hover .btn-plan,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-media,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-kicker,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-speed,
-.plans-grid.is-carousel .compact-plan-card:focus-within h3,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-fit,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-service-row,
-.plans-grid.is-carousel .compact-plan-card:focus-within ul,
-.plans-grid.is-carousel .compact-plan-card:focus-within .plan-price,
-.plans-grid.is-carousel .compact-plan-card:focus-within .btn-plan,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-media,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-kicker,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-speed,
-.plans-grid.is-carousel .compact-plan-card.is-expanded h3,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-fit,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-service-row,
-.plans-grid.is-carousel .compact-plan-card.is-expanded ul,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .plan-price,
-.plans-grid.is-carousel .compact-plan-card.is-expanded .btn-plan{
+.compact-plan-card:hover .plan-media,
+.compact-plan-card:hover .plan-kicker,
+.compact-plan-card:hover .plan-speed,
+.compact-plan-card:hover h3,
+.compact-plan-card:hover .plan-fit,
+.compact-plan-card:hover .plan-service-row,
+.compact-plan-card:hover ul,
+.compact-plan-card:hover .plan-price,
+.compact-plan-card:hover .btn-plan,
+.compact-plan-card:focus-within .plan-media,
+.compact-plan-card:focus-within .plan-kicker,
+.compact-plan-card:focus-within .plan-speed,
+.compact-plan-card:focus-within h3,
+.compact-plan-card:focus-within .plan-fit,
+.compact-plan-card:focus-within .plan-service-row,
+.compact-plan-card:focus-within ul,
+.compact-plan-card:focus-within .plan-price,
+.compact-plan-card:focus-within .btn-plan,
+.compact-plan-card.is-expanded .plan-media,
+.compact-plan-card.is-expanded .plan-kicker,
+.compact-plan-card.is-expanded .plan-speed,
+.compact-plan-card.is-expanded h3,
+.compact-plan-card.is-expanded .plan-fit,
+.compact-plan-card.is-expanded .plan-service-row,
+.compact-plan-card.is-expanded ul,
+.compact-plan-card.is-expanded .plan-price,
+.compact-plan-card.is-expanded .btn-plan{
   max-height:900px;
   opacity:1;
   overflow:visible;
@@ -2429,8 +2437,8 @@ a{
     gap:8px;
   }
 
-  .tv-logo-img{
-    height:34px;
+  .tv-logo{
+    font-size:11px;
     width:calc(50% - 4px);
   }
 
