@@ -1978,13 +1978,13 @@ a{
   box-shadow:0 12px 24px rgba(0,0,0,0.22);
   color:var(--white);
   display:flex;
-  font-size:13px;
+  font-size:0;
   font-weight:900;
   height:54px;
   justify-content:center;
   letter-spacing:0;
+  line-height:0;
   overflow:hidden;
-  text-indent:120%;
   text-decoration:none;
   transition:transform 0.2s ease;
   white-space:nowrap;
