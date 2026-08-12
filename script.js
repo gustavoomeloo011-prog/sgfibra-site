@@ -69,6 +69,50 @@ if (menuToggle && mainNav) {
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const promoCountdown = document.querySelector(".promo-countdown");
+const promoCountdownTitle = document.querySelector("#promo-countdown-title");
+const promoCountdownTime = document.querySelector("#promo-countdown-time");
+const promoCountdownNote = document.querySelector("#promo-countdown-note");
+
+if (promoCountdown && promoCountdownTitle && promoCountdownTime && promoCountdownNote) {
+  const formatTimer = (milliseconds) => {
+    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const nextTimeToday = (hour) => {
+    const date = new Date();
+    date.setHours(hour, 0, 0, 0);
+    return date;
+  };
+
+  const updatePromoCountdown = () => {
+    const now = new Date();
+    const startsAt = nextTimeToday(8);
+    const endsAt = nextTimeToday(21);
+    const isActive = now >= startsAt && now < endsAt;
+    const target = isActive ? endsAt : startsAt;
+
+    if (!isActive && now >= endsAt) {
+      target.setDate(target.getDate() + 1);
+    }
+
+    promoCountdown.classList.toggle("is-paused", !isActive);
+    promoCountdownTitle.textContent = isActive ? "Planos promocionais ativos" : "Promoção volta às 08h";
+    promoCountdownTime.textContent = formatTimer(target - now);
+    promoCountdownTime.setAttribute("datetime", target.toISOString());
+    promoCountdownNote.textContent = isActive
+      ? "A promoção de hoje encerra às 21h."
+      : "A contagem recomeça todos os dias às 08h.";
+  };
+
+  updatePromoCountdown();
+  window.setInterval(updatePromoCountdown, 1000);
+}
+
 const hero = document.querySelector(".hero");
 
 if (hero && !prefersReducedMotion) {
