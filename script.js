@@ -69,6 +69,39 @@ if (menuToggle && mainNav) {
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const hero = document.querySelector(".hero");
+
+if (hero && !prefersReducedMotion) {
+  hero.addEventListener("pointermove", (event) => {
+    const rect = hero.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    hero.style.setProperty("--hero-x", `${x.toFixed(1)}%`);
+    hero.style.setProperty("--hero-y", `${y.toFixed(1)}%`);
+  });
+}
+
+const tiltCards = document.querySelectorAll(".plan-card");
+
+if (!prefersReducedMotion) {
+  tiltCards.forEach((card) => {
+    card.addEventListener("pointermove", (event) => {
+      const rect = card.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      const y = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+      card.classList.add("is-tilting");
+      card.style.setProperty("--card-tilt-x", `${(x * 4).toFixed(2)}deg`);
+      card.style.setProperty("--card-tilt-y", `${(-y * 3).toFixed(2)}deg`);
+    });
+
+    card.addEventListener("pointerleave", () => {
+      card.classList.remove("is-tilting");
+      card.style.removeProperty("--card-tilt-x");
+      card.style.removeProperty("--card-tilt-y");
+    });
+  });
+}
+
 const carouselTracks = document.querySelectorAll(".plans-grid:not(.plans-static-grid)");
 
 carouselTracks.forEach((track) => {
