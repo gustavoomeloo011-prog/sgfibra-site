@@ -144,6 +144,21 @@ if (emailSpotlightButton) {
   });
 }
 
+document.querySelectorAll(".compact-plan-card").forEach((card) => {
+  card.addEventListener("click", (event) => {
+    if (event.target.closest("a")) {
+      return;
+    }
+
+    const track = card.closest(".plans-grid");
+    track?.querySelectorAll(".compact-plan-card").forEach((item) => {
+      if (item !== card) item.classList.remove("is-expanded");
+    });
+    card.classList.toggle("is-expanded");
+    window.dispatchEvent(new Event("resize"));
+  });
+});
+
 const carouselTracks = document.querySelectorAll(".plans-grid:not(.plans-static-grid)");
 
 carouselTracks.forEach((track) => {
@@ -175,6 +190,9 @@ carouselTracks.forEach((track) => {
 
     cards.forEach((card, index) => {
       card.classList.remove("is-active", "is-prev", "is-next", "is-hidden");
+      if (index !== currentIndex) {
+        card.classList.remove("is-expanded");
+      }
       card.classList.toggle("is-active", index === currentIndex);
 
       if (index === previousIndex) {
