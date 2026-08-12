@@ -102,6 +102,48 @@ if (!prefersReducedMotion) {
   });
 }
 
+const showcasePlans = document.querySelectorAll(".showcase-plan");
+const showcaseCaption = document.querySelector("#showcase-caption");
+
+if (showcasePlans.length && showcaseCaption) {
+  const activateShowcasePlan = (plan) => {
+    showcasePlans.forEach((item) => item.classList.toggle("is-active", item === plan));
+    const title = plan.dataset.title || plan.textContent.trim();
+    const caption = plan.dataset.caption || "";
+    showcaseCaption.textContent = `${title}: ${caption}`;
+  };
+
+  showcasePlans.forEach((plan) => {
+    plan.addEventListener("pointerenter", () => activateShowcasePlan(plan));
+    plan.addEventListener("click", () => activateShowcasePlan(plan));
+    plan.addEventListener("focus", () => activateShowcasePlan(plan));
+  });
+}
+
+const emailSpotlightButton = document.querySelector(".email-spotlight button");
+
+if (emailSpotlightButton) {
+  const originalHint = emailSpotlightButton.querySelector("small")?.textContent || "Clique para copiar";
+
+  emailSpotlightButton.addEventListener("click", async () => {
+    const email = emailSpotlightButton.dataset.email || "sgfibra.contato@gmail.com";
+    const hint = emailSpotlightButton.querySelector("small");
+
+    try {
+      await navigator.clipboard.writeText(email);
+      emailSpotlightButton.classList.add("is-copied");
+      if (hint) hint.textContent = "E-mail copiado";
+    } catch {
+      window.location.href = `mailto:${email}`;
+    }
+
+    window.setTimeout(() => {
+      emailSpotlightButton.classList.remove("is-copied");
+      if (hint) hint.textContent = originalHint;
+    }, 1800);
+  });
+}
+
 const carouselTracks = document.querySelectorAll(".plans-grid:not(.plans-static-grid)");
 
 carouselTracks.forEach((track) => {
@@ -219,7 +261,7 @@ carouselTracks.forEach((track) => {
 });
 
 const revealItems = document.querySelectorAll(
-  ".brand, .hero-content > *, .hero-card > img, .trust-strip div, .section-heading, .coverage-content > *, .app-content > *, .app-download-card, .location-photo-card, .plans-page-hero > div > *, .plans-page-hero img, .no-ads-highlight, .tv-programming, .addons-grid .addon-card, .app-hero-content > *, .app-phone-card img, .app-feature-grid article, .faq-link-grid a, .faq-question-grid article, .install-copy, .install-steps li, .download-panel, .legal-hero > *, .legal-card"
+  ".brand, .hero-content > *, .hero-card > img, .trust-strip div, .section-heading, .plan-hover-showcase, .coverage-content > *, .app-content > *, .app-download-card, .location-photo-card, .plans-page-hero > div > *, .plans-page-hero img, .no-ads-highlight, .tv-programming, .email-spotlight, .addons-grid .addon-card, .app-hero-content > *, .app-phone-card img, .app-feature-grid article, .faq-link-grid a, .faq-question-grid article, .install-copy, .install-steps li, .download-panel, .legal-hero > *, .legal-card"
 );
 
 revealItems.forEach((item, index) => {
