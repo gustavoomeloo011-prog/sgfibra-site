@@ -30,6 +30,14 @@ const EMAIL_INITIAL_DELAY_MS = Number(process.env.EMAIL_INITIAL_DELAY_MS || 4500
 const EMAIL_RETRY_DELAY_MS = Number(process.env.EMAIL_RETRY_DELAY_MS || 30000);
 const TERM_READY_ATTEMPTS = Number(process.env.TERM_READY_ATTEMPTS || 4);
 const TERM_READY_INTERVAL_MS = Number(process.env.TERM_READY_INTERVAL_MS || 15000);
+const PUBLIC_HOST = (() => {
+  try {
+    return (PUBLIC_BASE_URL ? new URL(PUBLIC_BASE_URL).hostname : "cadastro.sgfibra.com.br").toLowerCase();
+  } catch {
+    return "cadastro.sgfibra.com.br";
+  }
+})();
+const ALLOW_RENDER_HOST = String(process.env.ALLOW_RENDER_HOST || "false") === "true";
 const sessions = new Map();
 const rates = new Map();
 const inFlightCadastros = new Map();
@@ -442,9 +450,24 @@ function getSession(req) {
   return { sid, ...session };
 }
 
+function cadastroCsp(nonce = "") {
+  const styleSrc = nonce ? `'self' 'nonce-${nonce}'` : "'self' 'unsafe-inline'";
+  const scriptSrc = nonce ? `'self' 'nonce-${nonce}'` : "'self' 'unsafe-inline'";
+  return [
+    "default-src 'self'",
+    "connect-src 'self' https://viacep.com.br",
+    "img-src 'self' data: blob:",
+    `style-src ${styleSrc}`,
+    `script-src ${scriptSrc}`,
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'"
+  ].join("; ");
+}
+
 function send(res, status, body, headers = {}) {
   res.writeHead(status, {
-    "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://viacep.com.br; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Content-Security-Policy": cadastroCsp(),
     "Cache-Control": "no-store",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     "Referrer-Policy": "no-referrer",
@@ -633,7 +656,7 @@ function retryJob(id) {
   return true;
 }
 
-function htmlPage(csrf) {
+function htmlPage(csrf, nonce = "") {
   const planOptions = publicPlanEntries().map(([key, plan]) => (
     `<label class="plan-option"><input type="radio" name="plan" value="${escapeHtml(key)}" required><span>${escapeHtml(plan.name || key)}</span></label>`
   )).join("");
@@ -647,7 +670,7 @@ function htmlPage(csrf) {
   <title>&Aacute;rea de cadastro</title>
   <link rel="icon" href="/logo.png" type="image/png">
   <link rel="shortcut icon" href="/favicon.ico">
-  <style>
+  <style nonce="${escapeHtml(nonce)}">
     :root{--navy:#06172f;--blue:#006cff;--gold:#ffb31a;--soft:#f4f8fc;--line:#d9e4f2;--muted:#607086}
     *{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#06172f,#0b2447 48%,#f4f8fc 48%);color:#102033;font-family:Arial,Helvetica,sans-serif;line-height:1.45}
     main{min-height:100vh;padding:30px 5%;display:grid;place-items:center}.wrap{width:min(100%,980px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 24px 60px rgba(7,27,54,.22);overflow:hidden}
@@ -714,7 +737,7 @@ function htmlPage(csrf) {
     <button class="success-close" type="button" id="success-close">Fechar</button>
   </div>
 </div>
-<script>
+<script nonce="${escapeHtml(nonce)}">
   const form = document.querySelector("#cadastro-form");
   const result = document.querySelector("#result");
   const successModal = document.querySelector("#success-modal");
@@ -1350,7 +1373,90 @@ function validateDocumentFile(file, label) {
   if (!file || !file.buffer?.length) return `${label}: envie a foto do documento.`;
   if (file.buffer.length > MAX_UPLOAD_BYTES) return `${label}: arquivo maior que ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB.`;
   if (!allowedDocumentTypes.has(file.type)) return `${label}: envie JPG, PNG ou WEBP.`;
+  const detected = detectImageType(file.buffer);
+  if (!detected) return `${label}: arquivo de imagem invalido.`;
+  if (detected.mime !== file.type) return `${label}: o tipo do arquivo nao confere com o conteudo enviado.`;
+  const dimensions = imageDimensions(file.buffer, detected.ext);
+  if (!dimensions) return `${label}: nao foi possivel validar as dimensoes da imagem.`;
+  if (dimensions.width < 300 || dimensions.height < 200) return `${label}: imagem muito pequena para conferencia do documento.`;
+  if (dimensions.width > 8000 || dimensions.height > 8000) return `${label}: imagem grande demais.`;
   return "";
+}
+
+function detectImageType(buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { mime: "image/jpeg", ext: "jpg" };
+  }
+  if (
+    buffer.length >= 24 &&
+    buffer[0] === 0x89 &&
+    buffer.toString("ascii", 1, 4) === "PNG" &&
+    buffer.toString("ascii", 12, 16) === "IHDR"
+  ) {
+    return { mime: "image/png", ext: "png" };
+  }
+  if (buffer.length >= 30 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+    return { mime: "image/webp", ext: "webp" };
+  }
+  return null;
+}
+
+function imageDimensions(buffer, ext) {
+  if (ext === "png" && buffer.length >= 24) {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+  if (ext === "jpg") return jpegDimensions(buffer);
+  if (ext === "webp") return webpDimensions(buffer);
+  return null;
+}
+
+function jpegDimensions(buffer) {
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) return null;
+    const marker = buffer[offset + 1];
+    const length = buffer.readUInt16BE(offset + 2);
+    if (length < 2) return null;
+    if (
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf)
+    ) {
+      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function readUInt24LE(buffer, offset) {
+  if (offset + 2 >= buffer.length) return 0;
+  return buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
+}
+
+function webpDimensions(buffer) {
+  const chunk = buffer.toString("ascii", 12, 16);
+  if (chunk === "VP8X" && buffer.length >= 30) {
+    return { width: readUInt24LE(buffer, 24) + 1, height: readUInt24LE(buffer, 27) + 1 };
+  }
+  if (chunk === "VP8L" && buffer.length >= 25 && buffer[20] === 0x2f) {
+    const b1 = buffer[21];
+    const b2 = buffer[22];
+    const b3 = buffer[23];
+    const b4 = buffer[24];
+    return {
+      width: 1 + (((b2 & 0x3f) << 8) | b1),
+      height: 1 + (((b4 & 0x0f) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6))
+    };
+  }
+  if (chunk === "VP8 " && buffer.length >= 30 && buffer[23] === 0x9d && buffer[24] === 0x01 && buffer[25] === 0x2a) {
+    return {
+      width: buffer.readUInt16LE(26) & 0x3fff,
+      height: buffer.readUInt16LE(28) & 0x3fff
+    };
+  }
+  return null;
 }
 
 function documentUploads(files) {
@@ -1624,6 +1730,28 @@ function ensureOrigin(req) {
   }
 }
 
+function enforceOfficialHost(req, res, url) {
+  if (ALLOW_RENDER_HOST || !PUBLIC_HOST) return false;
+  const host = String(req.headers.host || "").split(":")[0].toLowerCase();
+  if (!host || host === PUBLIC_HOST || host === "localhost" || host === "127.0.0.1") return false;
+
+  if (req.method === "GET" || req.method === "HEAD") {
+    const target = new URL(`${url.pathname}${url.search}`, `https://${PUBLIC_HOST}`);
+    res.writeHead(301, {
+      Location: target.toString(),
+      "Cache-Control": "no-store",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY"
+    });
+    res.end();
+    return true;
+  }
+
+  json(res, 403, { error: "Use o dominio oficial do cadastro." });
+  return true;
+}
+
 async function handleCadastro(req, res) {
   if (!SGP_APP || !SGP_TOKEN) return json(res, 503, { error: "Cadastro aguardando configuracao da SG Fibra." });
   if (!ensureOrigin(req)) return json(res, 403, { error: "Origem nao autorizada." });
@@ -1831,6 +1959,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/health") return json(res, 200, { ok: true });
+    if (enforceOfficialHost(req, res, url)) return;
     if (req.method === "POST" && url.pathname === "/admin/login") {
       const data = await readUrlEncoded(req);
       if (adminCredentialsValid(String(data.user || ""), String(data.password || ""))) {
@@ -1868,7 +1997,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/") {
       const session = makeSession(req, res);
-      return send(res, 200, htmlPage(session.csrf), { "Content-Type": "text/html; charset=utf-8" });
+      const nonce = crypto.randomBytes(16).toString("base64");
+      return send(res, 200, htmlPage(session.csrf, nonce), {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Security-Policy": cadastroCsp(nonce)
+      });
     }
     if (req.method === "POST" && url.pathname === "/api/cadastro") return handleCadastro(req, res);
     return send(res, 404, "Pagina nao encontrada.", { "Content-Type": "text/plain; charset=utf-8" });

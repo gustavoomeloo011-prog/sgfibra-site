@@ -1,0 +1,3 @@
+Contact: mailto:sgfibra.contato@gmail.com
+Preferred-Languages: pt-BR
+Canonical: https://sgfibra.com.br/.well-known/security.txt
