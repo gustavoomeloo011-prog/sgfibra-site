@@ -531,6 +531,12 @@ a{
   position:absolute;
   right:0;
   top:0;
+  z-index:0;
+}
+
+.plan-card > *{
+  position:relative;
+  z-index:1;
 }
 
 .plan-media{
@@ -620,6 +626,7 @@ a{
 .featured-label{
   background:var(--gold);
   border-radius:999px;
+  box-shadow:0 0 0 8px rgba(255,255,255,0.96),0 10px 22px rgba(255,179,26,0.28);
   color:#3b2600;
   font-size:12px;
   font-weight:900;
@@ -630,6 +637,7 @@ a{
   top:-16px;
   transform:translateX(-50%);
   white-space:nowrap;
+  z-index:3;
 }
 
 .plan-kicker{
@@ -2006,16 +2014,16 @@ a{
 
   .plans-grid.is-carousel .plan-card,
   .combo-grid.is-carousel .plan-card{
-    max-width:330px;
-    width:74%;
+    max-width:305px;
+    width:68%;
   }
 
   .plans-grid.is-carousel .plan-card.is-prev{
-    transform:translateX(-98%) translateZ(-120px) rotateY(58deg) scale(0.74);
+    transform:translateX(-102%) translateZ(-120px) rotateY(58deg) scale(0.74);
   }
 
   .plans-grid.is-carousel .plan-card.is-next{
-    transform:translateX(-2%) translateZ(-120px) rotateY(-58deg) scale(0.74);
+    transform:translateX(2%) translateZ(-120px) rotateY(-58deg) scale(0.74);
   }
 
   .plan-speed strong{
