@@ -609,6 +609,94 @@ a{
   background:#102033;
 }
 
+.daily-promo-card{
+  align-items:center;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,0.96),rgba(239,247,255,0.96)),
+    radial-gradient(circle at 12% 18%,rgba(255,179,26,0.28),rgba(255,179,26,0) 34%);
+  border:2px solid rgba(0,108,255,0.28);
+  border-radius:8px;
+  box-shadow:0 22px 44px rgba(7,27,54,0.12);
+  display:grid;
+  gap:18px;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  margin:0 auto 32px;
+  max-width:980px;
+  padding:20px;
+}
+
+.daily-promo-card span{
+  color:var(--blue);
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+}
+
+.daily-promo-card h3{
+  color:#06172f;
+  font-size:clamp(32px,5vw,52px);
+  line-height:1;
+  margin:6px 0 8px;
+}
+
+.daily-promo-card p{
+  color:#5b6a80;
+  margin:0;
+  max-width:460px;
+}
+
+.daily-promo-price{
+  background:#06172f;
+  border-radius:8px;
+  color:var(--white);
+  min-width:210px;
+  padding:16px 18px;
+  text-align:center;
+}
+
+.daily-promo-price small{
+  color:#d7e6f8;
+  display:block;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:4px;
+}
+
+.daily-promo-price s{
+  color:#ffcf59;
+  text-decoration-thickness:2px;
+}
+
+.daily-promo-price strong{
+  display:inline-block;
+  font-size:34px;
+  line-height:1;
+}
+
+.daily-promo-price span{
+  color:#d7e6f8;
+  display:inline;
+  font-size:12px;
+  letter-spacing:0;
+  text-transform:none;
+}
+
+.daily-promo-action{
+  align-items:center;
+  background:var(--blue);
+  border-radius:8px;
+  color:var(--white);
+  display:flex;
+  font-weight:900;
+  justify-content:center;
+  min-height:54px;
+  padding:14px 18px;
+  text-decoration:none;
+  white-space:nowrap;
+}
+
 .plan-hover-showcase{
   background:
     radial-gradient(circle at 50% 45%,rgba(0,108,255,0.18),rgba(0,108,255,0) 34%),
@@ -2284,6 +2372,26 @@ a{
 
   .promo-countdown small{
     text-align:center;
+  }
+
+  .daily-promo-card{
+    grid-template-columns:1fr;
+    margin-bottom:28px;
+    padding:18px;
+    text-align:center;
+  }
+
+  .daily-promo-card p{
+    margin:0 auto;
+  }
+
+  .daily-promo-price{
+    min-width:0;
+    width:100%;
+  }
+
+  .daily-promo-action{
+    width:100%;
   }
 
   .plan-hover-showcase{
