@@ -677,21 +677,27 @@ function htmlPage(csrf, nonce = "") {
     :root{--navy:#06172f;--blue:#006cff;--gold:#ffb31a;--soft:#f4f8fc;--line:#d9e4f2;--muted:#607086}
     *{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#06172f,#0b2447 48%,#f4f8fc 48%);color:#102033;font-family:Arial,Helvetica,sans-serif;line-height:1.45}
     main{min-height:100vh;padding:30px 5%;display:grid;place-items:center}.wrap{width:min(100%,980px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 24px 60px rgba(7,27,54,.22);overflow:hidden}
-    header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}header span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
+    header{background:linear-gradient(120deg,var(--navy),#0b3b78);color:#fff;padding:34px}.header-brand{align-items:center;display:flex;gap:14px;margin-bottom:18px}.header-brand img{background:#fff;border-radius:8px;box-shadow:0 12px 28px rgba(0,0,0,.18);height:72px;object-fit:contain;padding:6px;width:112px}.header-brand span{color:var(--gold);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:1.4px}.header-brand strong{display:block;color:#fff;font-size:22px;letter-spacing:0;text-transform:none}h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:10px 0}header p{color:#d7e6f8;max-width:720px;margin:0}
     form{display:grid;gap:18px;padding:28px}.grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}label{display:grid;gap:7px;color:#263f5c;font-weight:800;font-size:14px}input,select,textarea{border:1px solid var(--line);border-radius:8px;font:inherit;font-size:16px;min-height:46px;padding:12px;background:#f8fbff;color:#102033}textarea{min-height:86px;resize:vertical}.full{grid-column:1/-1}.uppercase-input{text-transform:uppercase}
     .plans{background:#f8fbff;border:1px solid var(--line);border-radius:8px;padding:16px}.plan-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}.plan-option{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
     .documents{background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;display:grid;gap:12px;padding:16px}.documents p{color:#5f3a00;margin:0}.documents input[type=file]{background:#fff;border-style:dashed;padding:10px}
     .success-modal{position:fixed;inset:0;background:rgba(3,12,26,.94);display:none;z-index:20;align-items:center;justify-content:center;padding:18px;overflow:auto}.success-modal.is-open{display:flex}
     .consent{display:flex;align-items:flex-start;gap:10px;font-weight:700;color:#39536f}.consent input{min-height:auto;margin-top:4px}.hidden{display:none}
     button{background:var(--blue);border:0;border-radius:8px;color:#fff;cursor:pointer;font-size:16px;font-weight:900;min-height:52px;padding:14px 18px}button:disabled{opacity:.65;cursor:wait}.result{border-radius:8px;display:none;font-weight:800;padding:14px}.result.error{background:#fee2e2;color:#991b1b;display:block}.success-card{background:#fff;border:1px solid rgba(255,255,255,.2);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.35);color:#102033;display:grid;gap:14px;justify-items:center;max-width:440px;padding:26px;text-align:center;width:min(100%,440px)}.success-card img{height:auto;max-width:190px;width:58%}.success-card strong{font-size:24px;line-height:1.15}.success-card p{color:#39536f;margin:0}.protocol{display:inline-block;background:#fff8e8;border:1px solid #ffd98a;border-radius:8px;color:#5f3a00;font-size:20px;font-weight:900;margin-top:2px;padding:10px 12px}.success-close{width:100%}
-    @media(max-width:720px){body{background:#f4f8fc}.grid{grid-template-columns:1fr}main{display:block;padding:0}.wrap{border:0;border-radius:0;min-height:100vh;width:100%;box-shadow:none}header{padding:22px}form{gap:14px;padding:18px}.success-modal{align-items:flex-start;padding:12px}.success-card{margin-top:26px;padding:22px 16px}}
+    @media(max-width:720px){body{background:#f4f8fc}.grid{grid-template-columns:1fr}main{display:block;padding:0}.wrap{border:0;border-radius:0;min-height:100vh;width:100%;box-shadow:none}header{padding:22px}.header-brand img{height:60px;width:96px}.header-brand strong{font-size:19px}form{gap:14px;padding:18px}.success-modal{align-items:flex-start;padding:12px}.success-card{margin-top:26px;padding:22px 16px}}
   </style>
 </head>
 <body>
 <main>
   <section class="wrap">
     <header>
-      <span>SG Fibra</span>
+      <div class="header-brand">
+        <img src="/logo.png" alt="SG Fibra">
+        <div>
+          <span>SG Fibra</span>
+          <strong>Cadastro oficial</strong>
+        </div>
+      </div>
       <h1>Cadastro para instalação</h1>
       <p>Preencha seus dados para a equipe consultar a disponibilidade, criar seu cadastro e continuar o atendimento.</p>
     </header>
