@@ -34,7 +34,7 @@ const EMAIL_INITIAL_DELAY_MS = Number(process.env.EMAIL_INITIAL_DELAY_MS || 4500
 const EMAIL_RETRY_DELAY_MS = Number(process.env.EMAIL_RETRY_DELAY_MS || 30000);
 const TERM_READY_ATTEMPTS = Number(process.env.TERM_READY_ATTEMPTS || 4);
 const TERM_READY_INTERVAL_MS = Number(process.env.TERM_READY_INTERVAL_MS || 15000);
-const KEEPALIVE_ENABLED = String(process.env.KEEPALIVE_ENABLED || "true") === "true";
+const KEEPALIVE_ENABLED = String(process.env.KEEPALIVE_ENABLED || "false") === "true";
 const KEEPALIVE_INTERVAL_MS = Number(process.env.KEEPALIVE_INTERVAL_MS || 10 * 60 * 1000);
 const PUBLIC_HOST = (() => {
   try {
