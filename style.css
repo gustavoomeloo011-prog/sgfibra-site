@@ -408,6 +408,33 @@ a{
   color:var(--white);
 }
 
+.play-store-link{
+  align-items:center;
+  border-radius:10px;
+  display:inline-flex;
+  line-height:0;
+  min-height:48px;
+  outline-offset:4px;
+  text-decoration:none;
+  transition:transform 0.2s ease,box-shadow 0.2s ease;
+}
+
+.play-store-link:hover{
+  box-shadow:0 14px 28px rgba(0,0,0,0.24);
+  transform:translateY(-2px);
+}
+
+.play-store-link img{
+  display:block;
+  height:52px;
+  max-width:100%;
+  width:176px;
+}
+
+.play-store-link-dark:hover{
+  box-shadow:0 14px 28px rgba(0,108,255,0.2);
+}
+
 .hero-card{
   align-items:center;
   display:flex;
