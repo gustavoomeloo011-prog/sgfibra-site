@@ -413,10 +413,12 @@ a{
   border-radius:10px;
   display:inline-flex;
   line-height:0;
-  min-height:48px;
+  max-width:320px;
+  min-height:60px;
   outline-offset:4px;
   text-decoration:none;
   transition:transform 0.2s ease,box-shadow 0.2s ease;
+  width:100%;
 }
 
 .play-store-link:hover{
@@ -426,9 +428,9 @@ a{
 
 .play-store-link img{
   display:block;
-  height:52px;
+  height:auto;
   max-width:100%;
-  width:176px;
+  width:100%;
 }
 
 .play-store-link-dark:hover{
