@@ -21,6 +21,10 @@ const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || "");
 const CONTACT_WHATSAPP = clean(process.env.CONTACT_WHATSAPP || "(11) 91497-3216", 40);
 const CONTACT_EMAIL = clean(process.env.CONTACT_EMAIL || "sgfibra.contato@gmail.com", 180);
 const SITE_URL = clean(process.env.SITE_URL || "https://sgfibra.com.br", 220);
+const APP_PLAY_STORE_URL = clean(
+  process.env.APP_PLAY_STORE_URL || "https://play.google.com/store/apps/details?id=br.com.sgfibra.app",
+  500
+);
 const SIGNATURE_CONTRACT_URL_TEMPLATE = clean(process.env.SIGNATURE_CONTRACT_URL_TEMPLATE || "", 700);
 const GOOGLE_REVIEW_URL = clean(
   process.env.GOOGLE_REVIEW_URL || "https://share.google/xzOgr6uyXR8uDLQsg",
@@ -1573,6 +1577,7 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
     `Atendimento: ${CONTACT_WHATSAPP}`,
     `Site: ${SITE_URL}`,
     `E-mail: ${CONTACT_EMAIL}`,
+    `Aplicativo SG Fibra: ${APP_PLAY_STORE_URL}`,
     "",
     signatureUrl
       ? `Acesse o contrato para conferencia e assinatura eletronica: ${signatureUrl}`
@@ -1601,6 +1606,11 @@ async function sendConfirmationEmail({ to, name, contractId, planLabel, vencimen
         <p style="margin:0 0 8px"><strong>Atendimento:</strong> ${escapeHtml(CONTACT_WHATSAPP)}</p>
         <p style="margin:0 0 8px"><strong>Site:</strong> <a href="${escapeHtml(SITE_URL)}" style="color:#006cff">${escapeHtml(SITE_URL)}</a></p>
         <p style="margin:0"><strong>E-mail:</strong> <a href="mailto:${escapeHtml(CONTACT_EMAIL)}" style="color:#006cff">${escapeHtml(CONTACT_EMAIL)}</a></p>
+      </div>
+      <div style="background:#edf8ff;border:1px solid #b8dcff;border-radius:10px;margin:18px 0;padding:14px;text-align:center">
+        <p style="font-size:16px;font-weight:800;margin:0 0 6px;color:#102033">Acompanhe tudo pelo app SG Fibra</p>
+        <p style="font-size:13px;margin:0 0 12px;color:#30445f">Instale o aplicativo para acessar informacoes do seu atendimento e servicos da SG Fibra.</p>
+        <a href="${escapeHtml(APP_PLAY_STORE_URL)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-size:14px;font-weight:800;max-width:250px;padding:12px 16px;text-decoration:none;width:auto">Instalar app SG Fibra</a>
       </div>
       ${signatureUrl ? `<p>Confira seu contrato e finalize a assinatura eletronica pelo link abaixo:</p>
       <p style="margin:22px 0;text-align:center"><a href="${escapeHtml(signatureUrl)}" style="background:#006cff;border-radius:8px;color:#ffffff;display:inline-block;font-weight:700;padding:13px 18px;text-decoration:none">Assinar contrato</a></p>
